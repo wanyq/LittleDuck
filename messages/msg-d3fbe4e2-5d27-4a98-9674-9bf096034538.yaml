@@ -1,0 +1,25 @@
+schema_version: "0.1"
+message_id: msg-d3fbe4e2-5d27-4a98-9674-9bf096034538
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: work_item_state_changed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - solution-architect
+  - mission-owner
+
+subject:
+  type: work_item
+  id: WI-001
+  revision: 3
+
+summary: WI-001 已因有效 Run 启动从 ready 更新为 in_progress
+created_at: "2026-07-16T12:30:06Z"
+idempotency_key: work-item-state/littleduck-mvp-001/WI-001/revision-3/in-progress
+
+payload:
+  previous_status: ready
+  current_status: in_progress
+  triggering_run_id: RUN-WI-001-solution-architect
+  work_item_path: items/WI-001.md
