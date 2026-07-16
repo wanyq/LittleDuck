@@ -1,0 +1,32 @@
+schema_version: "0.1"
+message_id: msg-0553999a-1a36-4add-8a66-3e8e8ec59f2f
+mission_id: littleduck-mvp-001
+intent: request
+message_type: work_item_proposed
+
+sender_agent_id: mission-owner
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: mission
+  id: littleduck-mvp-001
+  revision: 1
+
+summary: 请求补齐 QA 缺陷修复、回归和发布候选冻结闭环
+created_at: "2026-07-16T12:06:23Z"
+idempotency_key: work-item-proposal/littleduck-mvp-001/release-stabilization/revision-1
+
+payload:
+  proposal:
+    reason: 当前 WI-007 要求阻断缺陷关闭并复测通过，但 QA Work Item 不负责修改代码；WI-009 又可在没有独立缺陷修复和发布候选冻结环节时启动，发现阻断缺陷后依赖图缺少可执行闭环。
+    requested_changes:
+      - 调整 WI-007，使其交付测试结果、缺陷清单和明确结论；若存在阻断缺陷，由后续稳定化 Work Item 负责修复和回归。
+      - 新增一个发布稳定化 Work Item，依赖 WI-007 和 WI-008，负责修复验收发现的阻断缺陷、合并必要修订、执行针对性回归，并形成带版本标识的可部署发布候选 Artifact。
+      - 调整 WI-009，使其依赖新的发布稳定化 Work Item，并只部署该 Work Item 已接受的发布候选版本。
+      - 在稳定化 Work Item 验收标准中明确所有阻断 Mission 验收的缺陷均已关闭并复测通过，部署材料与最终候选版本保持一致。
+    affected_work_items:
+      - WI-007
+      - WI-008
+      - WI-009
+  requested_action: 审核该提议；若接受，请按 Coordinator 权限创建或调整 Work Item，并通过 response Message 告知结果。
