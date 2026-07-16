@@ -1,0 +1,17 @@
+schema_version: "0.1"
+agent_id: mission-owner
+agent_type: mission_owner
+status: active
+
+responsibilities:
+  - 提出并维护 LittleDuck Mission 的目标、范围、约束、必需交付物和验收标准
+  - 对 Mission 最终成果执行接受或拒绝
+  - 决定 Mission 的取消、完成或重新打开
+
+capabilities:
+  - mission-definition
+  - product-acceptance
+  - scope-decision
+
+created_at: "2026-07-16T11:50:17Z"
+updated_at: "2026-07-16T11:50:17Z"

@@ -1,0 +1,19 @@
+schema_version: "0.1"
+agent_id: coordinator
+agent_type: coordinator
+status: active
+
+responsibilities:
+  - 根据 Mission 创建、维护和分派 Work Item
+  - 登记人工启动的一级 Agent 并检查能力覆盖
+  - 处理 Run 阻塞、审核交付并创建 Artifact
+  - 汇总正式 Artifact 并向 Mission Owner 请求最终验收
+
+capabilities:
+  - work-planning
+  - agent-coordination
+  - delivery-review
+  - mission-reconciliation
+
+created_at: "2026-07-16T11:50:17Z"
+updated_at: "2026-07-16T11:50:17Z"

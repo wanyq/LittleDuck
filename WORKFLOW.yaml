@@ -1,0 +1,15 @@
+schema_version: "0.1"
+mission_id: littleduck-mvp-001
+mission_revision: 1
+status: active
+
+mission_owner: mission-owner
+coordinator: coordinator
+
+polling:
+  interval_seconds: 60
+  lookback_seconds: 300
+  reconciliation_minutes: 30
+
+created_at: "2026-07-16T11:50:17Z"
+updated_at: "2026-07-16T11:50:17Z"
