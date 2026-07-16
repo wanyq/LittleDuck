@@ -1,0 +1,22 @@
+schema_version: "0.1"
+message_id: msg-7954442f-6bb3-42bc-91e9-01f2282f4538
+mission_id: littleduck-mvp-001
+intent: request
+message_type: artifact_review_requested
+
+sender_agent_id: product-ui-designer
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 1
+
+summary: 请求审核 WI-002 用户端与管理端完整 UX/UI 规格及视觉材料
+created_at: "2026-07-16T12:44:11Z"
+idempotency_key: artifact-review/WI-002/RUN-WI-002-product-ui-designer/attempt-1
+
+payload:
+  run_id: RUN-WI-002-product-ui-designer
+  run_path: runs/WI-002/product-ui-designer
