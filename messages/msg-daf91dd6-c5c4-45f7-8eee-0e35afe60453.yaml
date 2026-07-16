@@ -1,0 +1,87 @@
+schema_version: "0.1"
+message_id: msg-daf91dd6-c5c4-45f7-8eee-0e35afe60453
+mission_id: littleduck-mvp-001
+intent: request
+message_type: agent_requested
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - mission-owner
+
+subject:
+  type: mission
+  id: littleduck-mvp-001
+  revision: 1
+
+summary: 请求按已接受的最终 Work Items 人工启动一级执行 Agent
+created_at: "2026-07-16T12:13:57Z"
+idempotency_key: agent-request/littleduck-mvp-001/final-capability-coverage/revision-2
+
+payload:
+  supersedes_message_id: msg-4b5774ea-69a0-4656-9ac5-6edad8e71124
+  requested_workers:
+    - suggested_agent_id: solution-architect
+      work_item_ids:
+        - WI-001
+      capabilities:
+        - solution-architecture
+        - api-contract-design
+        - full-stack-scaffolding
+        - security-design
+    - suggested_agent_id: product-ui-designer
+      work_item_ids:
+        - WI-002
+      capabilities:
+        - h5-ux
+        - desktop-admin-ui
+        - interaction-specification
+    - suggested_agent_id: backend-developer
+      work_item_ids:
+        - WI-003
+      capabilities:
+        - backend-development
+        - database-design
+        - openai-streaming
+        - api-contract-testing
+    - suggested_agent_id: frontend-developer
+      work_item_ids:
+        - WI-004
+        - WI-005
+      capabilities:
+        - h5-frontend
+        - desktop-web-frontend
+        - streaming-ui
+        - mock-contract-testing
+    - suggested_agent_id: integration-engineer
+      work_item_ids:
+        - WI-006
+      capabilities:
+        - application-integration
+        - api-contract-verification
+        - build-tooling
+        - developer-documentation
+    - suggested_agent_id: qa-engineer
+      work_item_ids:
+        - WI-007
+      capabilities:
+        - test-automation
+        - acceptance-testing
+        - security-testing
+        - defect-triage
+    - suggested_agent_id: deployment-engineer
+      work_item_ids:
+        - WI-008
+        - WI-009
+      capabilities:
+        - tencent-cloud-deployment
+        - linux-operations
+        - release-validation
+    - suggested_agent_id: release-stabilization-engineer
+      work_item_ids:
+        - WI-010
+      capabilities:
+        - full-stack-defect-remediation
+        - integration-regression
+        - deployment-alignment
+        - release-candidate-management
+  requested_action: 人工启动以上一级 Agent，并回复每个实际 agent_id；Coordinator 收到确认后登记 Agent 并发送 Work Item 分派 Request

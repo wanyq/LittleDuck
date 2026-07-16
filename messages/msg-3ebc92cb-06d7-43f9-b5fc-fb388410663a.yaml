@@ -1,0 +1,32 @@
+schema_version: "0.1"
+message_id: msg-3ebc92cb-06d7-43f9-b5fc-fb388410663a
+mission_id: littleduck-mvp-001
+intent: response
+message_type: question_answered
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - mission-owner
+
+subject:
+  type: mission
+  id: littleduck-mvp-001
+  revision: 1
+
+summary: 已完成最终 Work Items 的一级 Agent 能力覆盖检查
+created_at: "2026-07-16T12:13:57Z"
+idempotency_key: question-answer/littleduck-mvp-001/final-agent-coverage/revision-1
+in_reply_to: msg-fb769e41-3cab-444d-ab42-8d1323f3d6f7
+
+payload:
+  coverage_result: sufficient_after_new_worker_request
+  wi_010_plan:
+    agent_id: release-stabilization-engineer
+    responsibilities:
+      - 全栈阻断缺陷修复
+      - 用户端、管理端与服务端集成回归
+      - 部署材料与最终代码对齐
+      - 发布候选版本标识和冻结
+    execution_model: 由一个一级 Agent 对完整 Run 和交付负责，可在内部使用不登记的 Sub-agent
+  new_agent_request_message_id: msg-daf91dd6-c5c4-45f7-8eee-0e35afe60453
+  superseded_agent_request_message_id: msg-4b5774ea-69a0-4656-9ac5-6edad8e71124
