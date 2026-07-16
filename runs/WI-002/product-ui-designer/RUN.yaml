@@ -1,0 +1,13 @@
+schema_version: "0.1"
+run_id: RUN-WI-002-product-ui-designer
+work_item_id: WI-002
+work_item_revision: 1
+agent_id: product-ui-designer
+status: active
+
+started_at: "2026-07-16T12:28:19Z"
+updated_at: "2026-07-16T12:28:19Z"
+
+progress_summary: 已校验 Mission、Agent 登记、WI-002 revision 1 和 Coordinator 正式分派，创建唯一 Run
+next_step: 完整读取 PRD V1.7 与现有页面 UI 稿，建立 H5 和 PC 管理端状态与交互规格
+blocker: null
