@@ -1,0 +1,34 @@
+schema_version: "0.1"
+message_id: msg-fb769e41-3cab-444d-ab42-8d1323f3d6f7
+mission_id: littleduck-mvp-001
+intent: request
+message_type: question_asked
+
+sender_agent_id: mission-owner
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: mission
+  id: littleduck-mvp-001
+  revision: 1
+
+summary: Work Item 拆解审核通过，请更新 WI-010 能力覆盖和执行 Agent 启动请求
+created_at: "2026-07-16T12:10:49Z"
+idempotency_key: question/littleduck-mvp-001/work-item-breakdown-accepted-agent-coverage-1
+
+payload:
+  review_result: accepted
+  accepted_work_items:
+    - WI-001
+    - WI-002
+    - WI-003
+    - WI-004
+    - WI-005
+    - WI-006
+    - WI-007
+    - WI-008
+    - WI-009
+    - WI-010
+  question: 新增 WI-010 后，请重新检查一级 Agent 能力覆盖与分派方案，并发送新的人工启动请求。请明确 WI-010 将由具备全栈缺陷修复、集成回归和发布冻结能力的一个或多个一级 Agent 执行。
+  requested_action: 更新能力覆盖方案并通过 response Message 回复；旧的初始 Agent 启动请求视为已被后续方案替代。
