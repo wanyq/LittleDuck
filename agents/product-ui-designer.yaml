@@ -1,0 +1,17 @@
+schema_version: "0.1"
+agent_id: product-ui-designer
+agent_type: worker
+status: active
+
+responsibilities:
+  - 用户端 H5 的完整 UX 与 UI 状态规格
+  - PC Web 管理端的页面和交互规格
+  - 关键组件、文案、响应式和交互标注
+
+capabilities:
+  - h5-ux
+  - desktop-admin-ui
+  - interaction-specification
+
+created_at: "2026-07-16T12:25:06Z"
+updated_at: "2026-07-16T12:25:06Z"

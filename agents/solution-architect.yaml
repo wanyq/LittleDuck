@@ -1,0 +1,18 @@
+schema_version: "0.1"
+agent_id: solution-architect
+agent_type: worker
+status: active
+
+responsibilities:
+  - LittleDuck MVP 系统架构和模块边界设计
+  - API 与流式协议合同设计
+  - 工程骨架、数据模型和安全边界设计
+
+capabilities:
+  - solution-architecture
+  - api-contract-design
+  - full-stack-scaffolding
+  - security-design
+
+created_at: "2026-07-16T12:25:06Z"
+updated_at: "2026-07-16T12:25:06Z"
