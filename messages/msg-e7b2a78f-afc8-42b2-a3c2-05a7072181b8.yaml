@@ -1,0 +1,24 @@
+schema_version: "0.1"
+message_id: msg-e7b2a78f-afc8-42b2-a3c2-05a7072181b8
+mission_id: littleduck-mvp-001
+intent: response
+message_type: work_item_assigned
+
+sender_agent_id: solution-architect
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: work_item
+  id: WI-001
+  revision: 2
+
+summary: 已接受 WI-001 revision 2 正式分派并创建唯一 Run
+created_at: "2026-07-16T12:27:36Z"
+idempotency_key: work-item-assigned/littleduck-mvp-001/WI-001/revision-2/solution-architect
+in_reply_to: msg-465081c5-5a43-4676-9cff-7120b32b24a3
+
+payload:
+  decision: accepted
+  run_id: RUN-WI-001-solution-architect
+  run_path: runs/WI-001/solution-architect
