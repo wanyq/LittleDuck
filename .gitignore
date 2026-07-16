@@ -1,0 +1,40 @@
+.DS_Store
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+id_rsa*
+id_ed25519*
+
+# Dependencies and build outputs
+node_modules/
+dist/
+build/
+.next/
+coverage/
+.cache/
+
+# Runtime data and logs
+*.log
+logs/
+data/
+uploads/
+*.sqlite
+*.sqlite3
+
+# Editor and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/
