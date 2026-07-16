@@ -1,0 +1,23 @@
+schema_version: "0.1"
+message_id: msg-900f328c-91ed-4e2c-8056-6c5294bb904d
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: agent_registered
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - product-ui-designer
+  - mission-owner
+
+subject:
+  type: agent
+  id: product-ui-designer
+  revision: 1
+
+summary: product-ui-designer 已登记为 active 一级 Agent
+created_at: "2026-07-16T12:26:23Z"
+idempotency_key: agent-registered/littleduck-mvp-001/product-ui-designer/revision-1
+
+payload:
+  agent_path: agents/product-ui-designer.yaml
+  status: active
