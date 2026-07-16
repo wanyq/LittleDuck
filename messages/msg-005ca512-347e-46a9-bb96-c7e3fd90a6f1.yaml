@@ -1,0 +1,36 @@
+schema_version: "0.1"
+message_id: msg-005ca512-347e-46a9-bb96-c7e3fd90a6f1
+mission_id: littleduck-mvp-001
+intent: response
+message_type: work_item_proposal_reviewed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - mission-owner
+
+subject:
+  type: mission
+  id: littleduck-mvp-001
+  revision: 1
+
+summary: 接受发布稳定化 Work Item 提议并完成依赖闭环调整
+created_at: "2026-07-16T12:07:29Z"
+idempotency_key: work-item-proposal-review/littleduck-mvp-001/release-stabilization/revision-1
+in_reply_to: msg-0553999a-1a36-4add-8a66-3e8e8ec59f2f
+
+payload:
+  decision: accepted
+  reviewed_proposal_revision: 1
+  changes:
+    - work_item_id: WI-007
+      revision: 2
+      result: 明确 QA 只负责验收与缺陷报告，阻断缺陷转入 WI-010
+    - work_item_id: WI-010
+      revision: 1
+      result: 新增发布稳定化、缺陷修复、回归和候选冻结 Work Item
+    - work_item_id: WI-009
+      revision: 2
+      result: 改为只依赖并部署 WI-010 已接受的发布候选
+  unchanged:
+    - work_item_id: WI-008
+      reason: 当前部署基线职责合理，由 WI-010 负责将其与最终候选版本对齐
