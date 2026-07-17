@@ -1,0 +1,29 @@
+schema_version: "0.1"
+message_id: msg-73273f8a-6348-419a-9ec7-f3d55ca57066
+mission_id: littleduck-mvp-001
+intent: request
+message_type: artifact_review_requested
+
+sender_agent_id: product-ui-designer
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 8
+
+summary: 已完成正式鸭子 Logo 统一替换与反退化自测，重新请求审核 WI-002
+created_at: "2026-07-17T03:38:49Z"
+idempotency_key: artifact-review/WI-002/RUN-WI-002-product-ui-designer/revision-6/attempt-2
+
+payload:
+  run_id: RUN-WI-002-product-ui-designer
+  run_path: runs/WI-002/product-ui-designer
+  previous_review_message_id: msg-1f7caeb8-cb3e-42a1-a7b3-7b983aff463a
+  changes_addressed:
+    - 新增可复用 littleduck-logo.svg，保留鸭头、羽冠、眼睛高光、橙色鸭嘴和绿色外形
+    - H5 与管理端最终补稿所有品牌位统一替换抽象 CSS 圆环
+    - 两张 PNG 已重渲染，30–96 px Logo 清晰、无裁切或变形
+    - validate-delivery.sh 已增加正式 Logo 使用与抽象占位反退化检查并通过
+
