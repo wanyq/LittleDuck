@@ -1,0 +1,25 @@
+schema_version: "0.1"
+message_id: msg-8df04cf2-7fa7-4ba4-8bed-0d0f4ff51e95
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: work_item_state_changed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - product-ui-designer
+  - mission-owner
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 8
+
+summary: WI-002 已因 Logo 退修 Run 恢复从 in_review 更新为 in_progress
+created_at: "2026-07-17T03:34:14Z"
+idempotency_key: work-item-state/littleduck-mvp-001/WI-002/revision-8/in-progress
+
+payload:
+  previous_status: in_review
+  current_status: in_progress
+  triggering_run_id: RUN-WI-002-product-ui-designer
+  work_item_path: items/WI-002.md
