@@ -1,0 +1,30 @@
+schema_version: "0.1"
+message_id: msg-e1abf29a-9d85-4c0b-bde0-624ab068b1c3
+mission_id: littleduck-mvp-001
+intent: response
+message_type: artifact_reviewed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - product-ui-designer
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 5
+
+summary: WI-002 第二次审核通过，Run 成果已接受为正式 Artifact
+created_at: "2026-07-17T02:04:30Z"
+in_reply_to: msg-416cfb9b-059c-4bf9-827e-ecd6ba1dc30e
+idempotency_key: artifact-review-response/littleduck-mvp-001/WI-002/RUN-WI-002-product-ui-designer/attempt-2
+
+payload:
+  run_id: RUN-WI-002-product-ui-designer
+  decision: accepted
+  attempt: 2
+  accepted_artifacts:
+    - artifacts/WI-002/product-ui-designer
+  review_summary:
+    - 管理端视觉板已完整显示明确为假的 API Key 占位值，不再使用掩码、截断或显隐切换。
+    - HTML、重新渲染的 PNG 与 ux-ui-spec.md 规则一致。
+    - 完整 UX/UI 规格覆盖 WI-002 验收范围，凭据模式扫描无命中。

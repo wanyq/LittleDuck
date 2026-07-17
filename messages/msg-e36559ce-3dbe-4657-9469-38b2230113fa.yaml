@@ -1,0 +1,25 @@
+schema_version: "0.1"
+message_id: msg-e36559ce-3dbe-4657-9469-38b2230113fa
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: work_item_state_changed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - product-ui-designer
+  - mission-owner
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 5
+
+summary: WI-002 已在第二次审核通过后从 in_review 更新为 completed
+created_at: "2026-07-17T02:04:30Z"
+idempotency_key: work-item-state/littleduck-mvp-001/WI-002/revision-5/completed
+
+payload:
+  previous_status: in_review
+  current_status: completed
+  triggering_run_id: RUN-WI-002-product-ui-designer
+  work_item_path: items/WI-002.md
