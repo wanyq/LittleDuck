@@ -1,0 +1,11 @@
+id: 1
+event: generation.started
+data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":1,"kind":"chat","conversation":{"id":"6bf22123-6db0-4232-929d-3c77272a6ad2","title":"帮我写一个 Python 脚本","titleStatus":"temporary","createdAt":"2026-07-16T12:00:00Z","lastActivityAt":"2026-07-16T12:00:00Z","messageCount":2},"userMessage":{"id":"d5026980-61a4-4478-a045-bd2efbf17abc","conversationId":"6bf22123-6db0-4232-929d-3c77272a6ad2","role":"user","status":"persisted","content":"帮我写一个 Python 脚本","createdAt":"2026-07-16T12:00:00Z","updatedAt":"2026-07-16T12:00:00Z"},"assistantMessage":{"id":"4cbe9c70-74ff-4d5c-a70f-131722b21589","conversationId":"6bf22123-6db0-4232-929d-3c77272a6ad2","role":"assistant","status":"generating","content":"","replyToMessageId":"d5026980-61a4-4478-a045-bd2efbf17abc","generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","canRetry":false,"createdAt":"2026-07-16T12:00:00Z","updatedAt":"2026-07-16T12:00:00Z"},"occurredAt":"2026-07-16T12:00:00Z"}
+
+id: 2
+event: generation.delta
+data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":2,"assistantMessageId":"4cbe9c70-74ff-4d5c-a70f-131722b21589","delta":"已收到的部分内容","accumulatedLength":8,"occurredAt":"2026-07-16T12:00:01Z"}
+
+id: 3
+event: generation.failed
+data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":3,"assistantMessage":{"id":"4cbe9c70-74ff-4d5c-a70f-131722b21589","conversationId":"6bf22123-6db0-4232-929d-3c77272a6ad2","role":"assistant","status":"failed","content":"已收到的部分内容","replyToMessageId":"d5026980-61a4-4478-a045-bd2efbf17abc","generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","canRetry":true,"createdAt":"2026-07-16T12:00:00Z","updatedAt":"2026-07-16T12:00:04Z"},"error":{"code":"LLM_UNAVAILABLE","message":"回复生成失败，请稍后重试","retryable":true},"occurredAt":"2026-07-16T12:00:04Z"}

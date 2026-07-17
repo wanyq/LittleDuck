@@ -1,0 +1,57 @@
+:root {
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #202124;
+  background: #f4f6f8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 1024px;
+}
+
+.layout {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+}
+
+aside {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 32px 24px;
+  color: white;
+  background: #1f2937;
+}
+
+aside strong {
+  margin-bottom: 24px;
+  font-size: 22px;
+}
+
+section {
+  margin: 48px;
+  padding: 48px;
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 20px 60px rgb(31 41 55 / 8%);
+}
+
+.eyebrow {
+  color: #2b9c76;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 8px 0 16px;
+  font-size: 40px;
+}
+
+p {
+  max-width: 760px;
+  line-height: 1.8;
+}

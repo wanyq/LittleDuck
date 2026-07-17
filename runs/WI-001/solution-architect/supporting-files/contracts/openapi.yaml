@@ -1,0 +1,1723 @@
+openapi: 3.0.3
+info:
+  title: LittleDuck MVP API
+  version: 1.0.0
+  description: |
+    WI-001 revision 2 initial API contract baseline.
+    All timestamps are UTC ISO 8601. User-facing grouping and admin date
+    filters use Asia/Shanghai semantics as documented on each operation.
+    Semantic changes require a Coordinator-approved contract revision Work Item.
+servers:
+  - url: /
+    description: Same-origin production and local reverse proxy
+tags:
+  - name: Health
+    description: Service liveness and dependency readiness
+  - name: User Auth
+    description: User registration, login, session restoration and logout
+  - name: User Conversations
+    description: Current-user conversation and message queries
+  - name: User Generations
+    description: Chat generation, SSE recovery, stop and retry
+  - name: Admin Auth
+    description: Independent administrator identity domain
+  - name: Admin LLM Config
+    description: Single effective OpenAI configuration and connection test
+  - name: Admin Topics
+    description: Read-only cross-user topic, message and LLM call inspection
+
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Liveness and dependency readiness
+      security: []
+      responses:
+        "200":
+          description: API and required dependencies are ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+                database: ok
+                time: "2026-07-16T12:00:00Z"
+        "503":
+          description: API is alive but a required dependency is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: degraded
+                database: unavailable
+                time: "2026-07-16T12:00:00Z"
+
+  /api/v1/user/auth/register:
+    post:
+      tags: [User Auth]
+      operationId: registerUser
+      summary: Register a phone and create a 7-day user session
+      description: |
+        Only verification code 000000 is accepted. The API never sends SMS.
+        Registration succeeds only for a previously unregistered phone.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPhoneAuthRequest"
+            example:
+              phone: "13800138000"
+              verificationCode: "000000"
+      responses:
+        "201":
+          description: User created and logged in
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: HttpOnly user session cookie scoped to /api/v1/user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Phone is already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: USER_ALREADY_EXISTS
+                  message: 该手机号已注册，请直接登录
+                  requestId: req_01
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/v1/user/auth/login:
+    post:
+      tags: [User Auth]
+      operationId: loginUser
+      summary: Log in a registered user for 7 days
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPhoneAuthRequest"
+      responses:
+        "200":
+          description: Logged in
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          description: Phone is not registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: USER_NOT_REGISTERED
+                  message: 该手机号尚未注册，请先注册
+                  requestId: req_01
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/v1/user/auth/session:
+    get:
+      tags: [User Auth]
+      operationId: getUserSession
+      summary: Restore the current user session
+      security:
+        - UserCookie: []
+      responses:
+        "200":
+          description: Active session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSessionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/user/auth/logout:
+    post:
+      tags: [User Auth]
+      operationId: logoutUser
+      summary: Revoke the current user session
+      description: |
+        Active generations started by this exact user session receive a stop
+        request. Other sessions for the same user are not revoked.
+      security:
+        - UserCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Session revoked and cookie cleared
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/user/conversations:
+    get:
+      tags: [User Conversations]
+      operationId: listUserConversations
+      summary: List or search the current user's conversations
+      description: |
+        Sorted by lastActivityAt descending then id descending. Search matches
+        title only and trims surrounding whitespace. The client groups unsearched
+        results into today, yesterday, recent 7 days, and earlier using
+        Asia/Shanghai.
+      security:
+        - UserCookie: []
+      parameters:
+        - name: query
+          in: query
+          description: Title contains match. Empty or omitted means grouped list.
+          schema:
+            type: string
+            maxLength: 100
+        - $ref: "#/components/parameters/Cursor"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Conversation page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/user/conversations/{conversationId}:
+    get:
+      tags: [User Conversations]
+      operationId: getUserConversation
+      summary: Get a current-user conversation summary and active generation
+      security:
+        - UserCookie: []
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      responses:
+        "200":
+          description: Conversation detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationDetailResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/user/conversations/{conversationId}/messages:
+    get:
+      tags: [User Conversations]
+      operationId: listUserConversationMessages
+      summary: Load messages, starting with the latest 30
+      description: |
+        Without before, returns the latest messages in chronological order.
+        With before, returns an older page in chronological order for prepending.
+      security:
+        - UserCookie: []
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+        - name: before
+          in: query
+          schema:
+            type: string
+          description: Opaque signed cursor for an older page
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+      responses:
+        "200":
+          description: Message page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagePage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/user/generations:
+    post:
+      tags: [User Generations]
+      operationId: createUserGeneration
+      summary: Persist a user message and stream a new assistant generation
+      description: |
+        conversationId is omitted for a new unsaved conversation. The first
+        successful persistence transaction creates the conversation, temporary
+        title, user message, assistant placeholder, generation and LLM call.
+        Repeating the same request with the same Idempotency-Key replays or
+        continues the original generation. A different request body with the
+        same key returns 409 IDEMPOTENCY_KEY_REUSED.
+      security:
+        - UserCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGenerationRequest"
+            examples:
+              newConversation:
+                value:
+                  clientMessageId: d5026980-61a4-4478-a045-bd2efbf17abc
+                  content: 帮我写一个 Python 脚本
+              existingConversation:
+                value:
+                  conversationId: 6bf22123-6db0-4232-929d-3c77272a6ad2
+                  clientMessageId: 4a055129-4e14-4624-931f-8f4661bd1232
+                  content: 这个脚本如何增加参数校验？
+      responses:
+        "200":
+          description: |
+            SSE stream. The first event is generation.started, followed by zero
+            or more generation.delta events and exactly one terminal event.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: binary
+              example: |
+                id: 1
+                event: generation.started
+                data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":1,"kind":"chat","occurredAt":"2026-07-16T12:00:00Z"}
+
+                id: 2
+                event: generation.delta
+                data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":2,"assistantMessageId":"4cbe9c70-74ff-4d5c-a70f-131722b21589","delta":"当然可以。","accumulatedLength":6,"occurredAt":"2026-07-16T12:00:01Z"}
+
+          x-sse-events:
+            - $ref: "#/components/schemas/GenerationStartedEvent"
+            - $ref: "#/components/schemas/GenerationDeltaEvent"
+            - $ref: "#/components/schemas/GenerationCompletedEvent"
+            - $ref: "#/components/schemas/GenerationFailedEvent"
+            - $ref: "#/components/schemas/GenerationStoppedEvent"
+            - $ref: "#/components/schemas/HeartbeatEvent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Active generation or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          description: LLM configuration is missing or service unavailable before persistence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /api/v1/user/generations/{generationId}:
+    get:
+      tags: [User Generations]
+      operationId: getUserGeneration
+      summary: Read the authoritative generation state
+      security:
+        - UserCookie: []
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+      responses:
+        "200":
+          description: Generation state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/user/generations/{generationId}/stream:
+    get:
+      tags: [User Generations]
+      operationId: resumeUserGenerationStream
+      summary: Replay and, if active, continue a generation stream
+      description: |
+        Replays events with sequence greater than after or Last-Event-ID.
+        If neither is present, replays from sequence 1. When after equals the
+        terminal sequence, returns 204. Stream events are retained at least
+        24 hours; the final message and generation remain available afterward.
+      security:
+        - UserCookie: []
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+        - name: after
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: Last-Event-ID
+          in: header
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+      responses:
+        "200":
+          description: Replayed and/or live SSE
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: binary
+          x-sse-events:
+            - $ref: "#/components/schemas/GenerationStartedEvent"
+            - $ref: "#/components/schemas/GenerationDeltaEvent"
+            - $ref: "#/components/schemas/GenerationCompletedEvent"
+            - $ref: "#/components/schemas/GenerationFailedEvent"
+            - $ref: "#/components/schemas/GenerationStoppedEvent"
+            - $ref: "#/components/schemas/HeartbeatEvent"
+        "204":
+          description: Client already has the terminal event
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          description: Replay events expired; refresh messages and generation state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: STREAM_REPLAY_EXPIRED
+                  message: 流式记录已过期，请刷新会话查看最终状态
+                  requestId: req_01
+
+  /api/v1/user/generations/{generationId}/stop:
+    post:
+      tags: [User Generations]
+      operationId: stopUserGeneration
+      summary: Idempotently request generation stop
+      security:
+        - UserCookie: []
+      parameters:
+        - $ref: "#/components/parameters/GenerationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Generation was already terminal; current state returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationResponse"
+        "202":
+          description: Stop accepted; observe SSE or generation state for terminal result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/user/assistant-messages/{assistantMessageId}/retries:
+    post:
+      tags: [User Generations]
+      operationId: retryAssistantMessage
+      summary: Retry the latest retryable failed or stopped assistant message
+      description: |
+        Reuses the original user message, creates a new assistant message,
+        generation and LLM call, and preserves the original assistant message.
+      security:
+        - UserCookie: []
+      parameters:
+        - $ref: "#/components/parameters/AssistantMessageId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: SSE stream with kind=retry
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: binary
+          x-sse-events:
+            - $ref: "#/components/schemas/GenerationStartedEvent"
+            - $ref: "#/components/schemas/GenerationDeltaEvent"
+            - $ref: "#/components/schemas/GenerationCompletedEvent"
+            - $ref: "#/components/schemas/GenerationFailedEvent"
+            - $ref: "#/components/schemas/GenerationStoppedEvent"
+            - $ref: "#/components/schemas/HeartbeatEvent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Message is no longer retryable or another generation is active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: RETRY_NOT_ALLOWED
+                  message: 该回复当前不可重试
+                  requestId: req_01
+
+  /api/v1/admin/auth/login:
+    post:
+      tags: [Admin Auth]
+      operationId: loginAdmin
+      summary: Log in to the independent admin identity domain
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginRequest"
+            example:
+              username: admin
+              password: admin
+      responses:
+        "200":
+          description: Admin logged in
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: HttpOnly admin session cookie scoped to /api/v1/admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Username or password is incorrect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_CREDENTIALS
+                  message: 账号或密码错误
+                  requestId: req_01
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/v1/admin/auth/session:
+    get:
+      tags: [Admin Auth]
+      operationId: getAdminSession
+      summary: Restore the current admin session
+      security:
+        - AdminCookie: []
+      responses:
+        "200":
+          description: Active admin session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSessionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/admin/auth/logout:
+    post:
+      tags: [Admin Auth]
+      operationId: logoutAdmin
+      summary: Revoke the current admin session
+      security:
+        - AdminCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Session revoked and cookie cleared
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/llm-config:
+    get:
+      tags: [Admin LLM Config]
+      operationId: getAdminLlmConfig
+      summary: Get the single effective OpenAI configuration
+      description: Returns the complete API Key in plaintext to an authenticated admin.
+      security:
+        - AdminCookie: []
+      responses:
+        "200":
+          description: Current config or unconfigured state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LlmConfigResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags: [Admin LLM Config]
+      operationId: saveAdminLlmConfig
+      summary: Save and immediately activate the OpenAI API Key and model
+      description: |
+        Saving is independent from connection testing. Non-empty but invalid
+        values may be saved and will affect subsequent chat, title and retry calls.
+      security:
+        - AdminCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LlmConfigInput"
+      responses:
+        "200":
+          description: Saved effective config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LlmConfigResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/llm-config/test:
+    post:
+      tags: [Admin LLM Config]
+      operationId: testAdminLlmConfig
+      summary: Test unsaved OpenAI form values
+      description: |
+        Uses exactly the submitted API Key and model, sends no user conversation
+        data, does not save the config, and does not create a topic LLM call record.
+      security:
+        - AdminCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LlmConfigInput"
+      responses:
+        "200":
+          description: Test completed; success can be true or false
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LlmConfigTestResponse"
+              examples:
+                success:
+                  value:
+                    success: true
+                    provider: openai
+                    model: example-model
+                    testedAt: "2026-07-16T12:00:00Z"
+                providerFailure:
+                  value:
+                    success: false
+                    provider: openai
+                    model: example-model
+                    providerError:
+                      code: invalid_api_key
+                      message: The supplied API key is invalid.
+                    testedAt: "2026-07-16T12:00:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/topics:
+    get:
+      tags: [Admin Topics]
+      operationId: listAdminTopics
+      summary: List all user conversations as admin topics
+      description: |
+        Sorted by lastActivityAt descending then id descending. Date filters are
+        inclusive calendar dates in Asia/Shanghai and are converted to UTC by
+        the server. phone is an exact match; titleQuery is a contains match.
+      security:
+        - AdminCookie: []
+      parameters:
+        - name: titleQuery
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+        - name: phone
+          in: query
+          schema:
+            $ref: "#/components/schemas/Phone"
+        - name: createdFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: createdTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: activityFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: activityTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - $ref: "#/components/parameters/Cursor"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Topic page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTopicPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/admin/topics/{topicId}:
+    get:
+      tags: [Admin Topics]
+      operationId: getAdminTopic
+      summary: Get topic header and counts
+      security:
+        - AdminCookie: []
+      parameters:
+        - $ref: "#/components/parameters/TopicId"
+      responses:
+        "200":
+          description: Topic detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTopicResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/topics/{topicId}/messages:
+    get:
+      tags: [Admin Topics]
+      operationId: listAdminTopicMessages
+      summary: List all topic messages in chronological cursor pages
+      security:
+        - AdminCookie: []
+      parameters:
+        - $ref: "#/components/parameters/TopicId"
+        - $ref: "#/components/parameters/Cursor"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Message page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMessagePage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/topics/{topicId}/llm-calls:
+    get:
+      tags: [Admin Topics]
+      operationId: listAdminTopicLlmCalls
+      summary: List actual topic LLM calls in chronological order
+      description: |
+        Includes chat, title and retry calls. Prompt items preserve the actual
+        role and order sent to the provider. The response contains actual full
+        or partial output and provider errors. Connection tests are excluded.
+      security:
+        - AdminCookie: []
+      parameters:
+        - $ref: "#/components/parameters/TopicId"
+        - $ref: "#/components/parameters/Cursor"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: LLM call page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LlmCallPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    UserCookie:
+      type: apiKey
+      in: cookie
+      name: ld_user_session
+      description: HttpOnly user session cookie scoped to /api/v1/user
+    AdminCookie:
+      type: apiKey
+      in: cookie
+      name: ld_admin_session
+      description: HttpOnly admin session cookie scoped to /api/v1/admin
+
+  parameters:
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 32
+        maxLength: 512
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        Unique within the current user session. Reuse is allowed only for an
+        identical normalized request body.
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+      description: Opaque signed cursor returned by the previous page
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    GenerationId:
+      name: generationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AssistantMessageId:
+      name: assistantMessageId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TopicId:
+      name: topicId
+      in: path
+      required: true
+      description: Topic ID equals the underlying conversation ID
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Invalid input, verification code, cursor or date range
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          examples:
+            validation:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: 请求参数不正确
+                  requestId: req_01
+                  details:
+                    - field: content
+                      issue: 长度必须为 1 到 4000 个字符
+            invalidCode:
+              value:
+                error:
+                  code: INVALID_VERIFICATION_CODE
+                  message: 验证码错误，请重新输入
+                  requestId: req_01
+    Unauthorized:
+      description: Session is absent, expired or revoked
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: UNAUTHENTICATED
+              message: 登录状态已失效，请重新登录
+              requestId: req_01
+    Forbidden:
+      description: CSRF or origin validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: FORBIDDEN
+              message: 请求未获授权
+              requestId: req_01
+    NotFound:
+      description: Resource does not exist or is not owned by the current user
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: RESOURCE_NOT_FOUND
+              message: 资源不存在
+              requestId: req_01
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until the client may retry
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: RATE_LIMITED
+              message: 请求过于频繁，请稍后再试
+              requestId: req_01
+
+  schemas:
+    Phone:
+      type: string
+      pattern: "^1[3-9][0-9]{9}$"
+      example: "13800138000"
+
+    HealthResponse:
+      type: object
+      required: [status, database, time]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        database:
+          type: string
+          enum: [ok, unavailable, not_checked]
+          description: not_checked is permitted only for the WI-001 skeleton
+        time:
+          type: string
+          format: date-time
+
+    UserPhoneAuthRequest:
+      type: object
+      additionalProperties: false
+      required: [phone, verificationCode]
+      properties:
+        phone:
+          $ref: "#/components/schemas/Phone"
+        verificationCode:
+          type: string
+          pattern: "^[0-9]{6}$"
+          description: MVP accepts only 000000
+          example: "000000"
+
+    User:
+      type: object
+      additionalProperties: false
+      required: [id, phone, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        phone:
+          $ref: "#/components/schemas/Phone"
+        createdAt:
+          type: string
+          format: date-time
+
+    UserSessionResponse:
+      type: object
+      additionalProperties: false
+      required: [user, csrfToken, expiresAt]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        csrfToken:
+          type: string
+          description: Store in memory or session storage; send on mutations
+        expiresAt:
+          type: string
+          format: date-time
+
+    AdminLoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 1
+          maxLength: 256
+          format: password
+
+    Admin:
+      type: object
+      additionalProperties: false
+      required: [id, username]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+
+    AdminSessionResponse:
+      type: object
+      additionalProperties: false
+      required: [admin, csrfToken, expiresAt]
+      properties:
+        admin:
+          $ref: "#/components/schemas/Admin"
+        csrfToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    ConversationSummary:
+      type: object
+      additionalProperties: false
+      required:
+        [id, title, titleStatus, createdAt, lastActivityAt, messageCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 20
+        titleStatus:
+          type: string
+          enum: [temporary, final]
+        createdAt:
+          type: string
+          format: date-time
+        lastActivityAt:
+          type: string
+          format: date-time
+        messageCount:
+          type: integer
+          minimum: 1
+
+    ConversationPage:
+      type: object
+      additionalProperties: false
+      required: [items, hasMore]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConversationSummary"
+        nextCursor:
+          type: string
+          nullable: true
+        hasMore:
+          type: boolean
+
+    ConversationDetailResponse:
+      type: object
+      additionalProperties: false
+      required: [conversation, canSend]
+      properties:
+        conversation:
+          $ref: "#/components/schemas/ConversationSummary"
+        canSend:
+          type: boolean
+        activeGeneration:
+          type: object
+          allOf:
+            - $ref: "#/components/schemas/Generation"
+          nullable: true
+
+    Message:
+      type: object
+      additionalProperties: false
+      required: [id, conversationId, role, status, content, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant]
+        status:
+          type: string
+          enum: [persisted, generating, completed, failed, stopped]
+        content:
+          type: string
+        replyToMessageId:
+          type: string
+          format: uuid
+        retryOfMessageId:
+          type: string
+          format: uuid
+        generationId:
+          type: string
+          format: uuid
+        canRetry:
+          type: boolean
+          description: Present for assistant messages
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    MessagePage:
+      type: object
+      additionalProperties: false
+      required: [items, hasMoreBefore]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        beforeCursor:
+          type: string
+          nullable: true
+        hasMoreBefore:
+          type: boolean
+
+    CreateGenerationRequest:
+      type: object
+      additionalProperties: false
+      required: [clientMessageId, content]
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+          description: Omit for an unsaved new conversation
+        clientMessageId:
+          type: string
+          format: uuid
+          description: Stable browser-generated ID for duplicate prevention
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+
+    Generation:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - conversationId
+        - userMessageId
+        - assistantMessageId
+        - kind
+        - status
+        - lastEventSequence
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        userMessageId:
+          type: string
+          format: uuid
+        assistantMessageId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [chat, retry]
+        status:
+          type: string
+          enum: [queued, streaming, completed, failed, stopped]
+        lastEventSequence:
+          type: integer
+          format: int64
+          minimum: 0
+        cancelRequestedAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    GenerationResponse:
+      type: object
+      additionalProperties: false
+      required: [generation, assistantMessage]
+      properties:
+        generation:
+          $ref: "#/components/schemas/Generation"
+        assistantMessage:
+          $ref: "#/components/schemas/Message"
+
+    GenerationStartedEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - generationId
+        - sequence
+        - kind
+        - conversation
+        - userMessage
+        - assistantMessage
+        - occurredAt
+      properties:
+        generationId:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+          format: int64
+          minimum: 1
+        kind:
+          type: string
+          enum: [chat, retry]
+        conversation:
+          $ref: "#/components/schemas/ConversationSummary"
+        userMessage:
+          $ref: "#/components/schemas/Message"
+        assistantMessage:
+          $ref: "#/components/schemas/Message"
+        occurredAt:
+          type: string
+          format: date-time
+
+    GenerationDeltaEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - generationId
+        - sequence
+        - assistantMessageId
+        - delta
+        - accumulatedLength
+        - occurredAt
+      properties:
+        generationId:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+          format: int64
+          minimum: 2
+        assistantMessageId:
+          type: string
+          format: uuid
+        delta:
+          type: string
+          minLength: 1
+        accumulatedLength:
+          type: integer
+          minimum: 1
+        occurredAt:
+          type: string
+          format: date-time
+
+    GenerationCompletedEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - generationId
+        - sequence
+        - assistantMessage
+        - conversation
+        - titleGeneration
+        - occurredAt
+      properties:
+        generationId:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+          format: int64
+          minimum: 2
+        assistantMessage:
+          $ref: "#/components/schemas/Message"
+        conversation:
+          $ref: "#/components/schemas/ConversationSummary"
+        titleGeneration:
+          type: string
+          enum: [queued, not_needed]
+        occurredAt:
+          type: string
+          format: date-time
+
+    GenerationFailedEvent:
+      type: object
+      additionalProperties: false
+      required:
+        [generationId, sequence, assistantMessage, error, occurredAt]
+      properties:
+        generationId:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+          format: int64
+          minimum: 2
+        assistantMessage:
+          $ref: "#/components/schemas/Message"
+        error:
+          $ref: "#/components/schemas/PublicGenerationError"
+        occurredAt:
+          type: string
+          format: date-time
+
+    GenerationStoppedEvent:
+      type: object
+      additionalProperties: false
+      required:
+        [generationId, sequence, assistantMessage, stoppedBy, occurredAt]
+      properties:
+        generationId:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+          format: int64
+          minimum: 2
+        assistantMessage:
+          $ref: "#/components/schemas/Message"
+        stoppedBy:
+          type: string
+          enum: [user, logout]
+        occurredAt:
+          type: string
+          format: date-time
+
+    HeartbeatEvent:
+      type: object
+      additionalProperties: false
+      required: [generationId, occurredAt]
+      properties:
+        generationId:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+
+    PublicGenerationError:
+      type: object
+      additionalProperties: false
+      required: [code, message, retryable]
+      properties:
+        code:
+          type: string
+          enum:
+            - LLM_NOT_CONFIGURED
+            - LLM_UNAVAILABLE
+            - LLM_RATE_LIMITED
+            - LLM_TIMEOUT
+            - RESPONSE_PARSE_FAILED
+            - GENERATION_INTERRUPTED
+        message:
+          type: string
+        retryable:
+          type: boolean
+
+    LlmConfigInput:
+      type: object
+      additionalProperties: false
+      required: [provider, apiKey, model]
+      properties:
+        provider:
+          type: string
+          enum: [openai]
+        apiKey:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          format: password
+        model:
+          type: string
+          minLength: 1
+          maxLength: 200
+
+    LlmConfig:
+      type: object
+      additionalProperties: false
+      required: [provider, apiKey, model, updatedAt]
+      properties:
+        provider:
+          type: string
+          enum: [openai]
+        apiKey:
+          type: string
+          description: Full plaintext API Key, admin-only
+        model:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+
+    LlmConfigResponse:
+      type: object
+      additionalProperties: false
+      required: [configured]
+      properties:
+        configured:
+          type: boolean
+        config:
+          type: object
+          allOf:
+            - $ref: "#/components/schemas/LlmConfig"
+          nullable: true
+
+    ProviderError:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    LlmConfigTestResponse:
+      type: object
+      additionalProperties: false
+      required: [success, provider, model, testedAt]
+      properties:
+        success:
+          type: boolean
+        provider:
+          type: string
+          enum: [openai]
+        model:
+          type: string
+        providerError:
+          type: object
+          allOf:
+            - $ref: "#/components/schemas/ProviderError"
+          nullable: true
+        testedAt:
+          type: string
+          format: date-time
+
+    AdminTopicSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - phone
+        - messageCount
+        - llmCallCount
+        - createdAt
+        - lastActivityAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 20
+        phone:
+          $ref: "#/components/schemas/Phone"
+        messageCount:
+          type: integer
+          minimum: 1
+        llmCallCount:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        lastActivityAt:
+          type: string
+          format: date-time
+
+    AdminTopicPage:
+      type: object
+      additionalProperties: false
+      required: [items, hasMore]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminTopicSummary"
+        nextCursor:
+          type: string
+          nullable: true
+        hasMore:
+          type: boolean
+
+    AdminTopicResponse:
+      type: object
+      additionalProperties: false
+      required: [topic]
+      properties:
+        topic:
+          $ref: "#/components/schemas/AdminTopicSummary"
+
+    AdminMessagePage:
+      type: object
+      additionalProperties: false
+      required: [items, hasMore]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        nextCursor:
+          type: string
+          nullable: true
+        hasMore:
+          type: boolean
+
+    PromptItem:
+      type: object
+      additionalProperties: false
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, developer, user, assistant]
+        content:
+          type: string
+
+    LlmCall:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - step
+        - callType
+        - provider
+        - model
+        - prompt
+        - responseText
+        - status
+        - startedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        step:
+          type: integer
+          minimum: 1
+        callType:
+          type: string
+          enum: [chat, title, retry]
+        relatedMessageId:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          enum: [openai]
+        model:
+          type: string
+        prompt:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromptItem"
+        responseText:
+          type: string
+          description: Actual complete or partial provider output; may be empty
+        status:
+          type: string
+          enum: [in_progress, succeeded, failed, stopped]
+        providerResponseId:
+          type: string
+        providerError:
+          type: object
+          allOf:
+            - $ref: "#/components/schemas/ProviderError"
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+
+    LlmCallPage:
+      type: object
+      additionalProperties: false
+      required: [items, hasMore]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LlmCall"
+        nextCursor:
+          type: string
+          nullable: true
+        hasMore:
+          type: boolean
+
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [issue]
+      properties:
+        field:
+          type: string
+        issue:
+          type: string
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message, requestId]
+      properties:
+        code:
+          type: string
+          enum:
+            - VALIDATION_ERROR
+            - INVALID_VERIFICATION_CODE
+            - USER_ALREADY_EXISTS
+            - USER_NOT_REGISTERED
+            - INVALID_CREDENTIALS
+            - UNAUTHENTICATED
+            - FORBIDDEN
+            - RESOURCE_NOT_FOUND
+            - RATE_LIMITED
+            - CURSOR_INVALID
+            - DATE_RANGE_INVALID
+            - GENERATION_IN_PROGRESS
+            - RETRY_NOT_ALLOWED
+            - IDEMPOTENCY_KEY_REUSED
+            - LLM_NOT_CONFIGURED
+            - LLM_UNAVAILABLE
+            - STREAM_REPLAY_EXPIRED
+            - INTERNAL_ERROR
+        message:
+          type: string
+        requestId:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorDetail"
+
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/Error"

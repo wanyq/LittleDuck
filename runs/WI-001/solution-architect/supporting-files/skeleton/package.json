@@ -1,0 +1,28 @@
+{
+  "name": "littleduck-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "build": "pnpm contract:types && pnpm -r build",
+    "typecheck": "pnpm contract:types && pnpm -r typecheck",
+    "test": "pnpm --filter @littleduck/api test",
+    "dev:api": "pnpm --filter @littleduck/api dev",
+    "dev:user": "pnpm --filter @littleduck/user-web dev",
+    "dev:admin": "pnpm --filter @littleduck/admin-web dev",
+    "start:api": "pnpm --filter @littleduck/api start",
+    "contract:lint": "redocly lint ../contracts/openapi.yaml --config redocly.yaml",
+    "contract:types": "openapi-typescript ../contracts/openapi.yaml -o packages/contracts/src/generated.ts",
+    "examples:check": "node scripts/check-sse-examples.mjs",
+    "security:scan": "node scripts/scan-secrets.mjs",
+    "mock": "node scripts/mock-server.mjs"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.39.0",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  }
+}
