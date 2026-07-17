@@ -1,0 +1,26 @@
+schema_version: "0.1"
+message_id: msg-97972f9d-eb05-4683-84f4-eb32becec7ac
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: work_item_state_changed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - solution-architect
+  - mission-owner
+
+subject:
+  type: work_item
+  id: WI-001
+  revision: 6
+
+summary: WI-001 已因第二次完整重做提交从 in_progress 更新为 in_review
+created_at: "2026-07-17T07:55:06Z"
+idempotency_key: work-item-state/littleduck-mvp-001/WI-001/revision-6/in-review
+
+payload:
+  previous_status: in_progress
+  current_status: in_review
+  triggering_run_id: RUN-WI-001-solution-architect
+  review_request_message_id: msg-489f6f85-07c4-45ad-b534-2997e2b4166e
+  work_item_path: items/WI-001.md
