@@ -1,0 +1,31 @@
+schema_version: "0.1"
+message_id: msg-72ee2e00-3b9b-4a2a-84ad-bdc19b4d78e1
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: message_corrected
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - product-ui-designer
+  - mission-owner
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 6
+
+summary: 纠正新增 WI-011 的协调决定，改为重新执行 WI-002 并撤销原交付
+created_at: "2026-07-17T02:27:56Z"
+idempotency_key: message-correction/littleduck-mvp-001/WI-002/revision-6/reexecute-instead-of-WI-011
+
+payload:
+  reason: Mission Owner 确认新增正式 UI 稿推翻原 WI-002 交付，本工作应视为 WI-002 的重新执行，而非独立后续 Work Item。
+  superseded_messages:
+    - msg-126719ce-e179-445d-8c1a-7b8052ce5eec
+    - msg-a1cd2fa1-5ad2-4ccf-addf-56aa572172d7
+  revoked_acceptance_message:
+    - msg-c50284c9-9a3e-403d-a0c1-0753a835a883
+  corrected_effect:
+    - WI-011 revision 2 已取消，不得创建或继续 WI-011 Run。
+    - WI-002 revision 6 已重新开放，accepted_artifacts 已清空，旧 Artifact 已从当前树撤销。
+    - product-ui-designer 应恢复原 RUN-WI-002-product-ui-designer，按 revision 6 完整重做并重新提交审核。

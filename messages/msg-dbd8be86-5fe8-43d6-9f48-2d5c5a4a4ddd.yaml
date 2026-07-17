@@ -1,0 +1,26 @@
+schema_version: "0.1"
+message_id: msg-dbd8be86-5fe8-43d6-9f48-2d5c5a4a4ddd
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: work_item_state_changed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - product-ui-designer
+  - mission-owner
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 6
+
+summary: WI-002 原交付已撤销并从 completed 重新更新为 ready
+created_at: "2026-07-17T02:27:56Z"
+idempotency_key: work-item-state/littleduck-mvp-001/WI-002/revision-6/reopened-ready
+
+payload:
+  previous_status: completed
+  current_status: ready
+  accepted_artifacts_cleared: true
+  revoked_artifact_path: artifacts/WI-002/product-ui-designer
+  work_item_path: items/WI-002.md
