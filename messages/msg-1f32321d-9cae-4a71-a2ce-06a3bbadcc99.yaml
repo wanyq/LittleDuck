@@ -1,0 +1,26 @@
+schema_version: "0.1"
+message_id: msg-1f32321d-9cae-4a71-a2ce-06a3bbadcc99
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: work_item_state_changed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - solution-architect
+  - mission-owner
+
+subject:
+  type: work_item
+  id: WI-001
+  revision: 5
+
+summary: WI-001 已根据退修中的 active Run 从残留的 in_review 校正为 in_progress
+created_at: "2026-07-17T07:52:03Z"
+idempotency_key: work-item-state/littleduck-mvp-001/WI-001/revision-5/in-progress-reconciled
+
+payload:
+  previous_status: in_review
+  current_status: in_progress
+  reason: 第一次审核拒绝后唯一 Run 已恢复 active，尚未发出新的 artifact_review_requested
+  triggering_run_id: RUN-WI-001-solution-architect
+  work_item_path: items/WI-001.md
