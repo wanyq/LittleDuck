@@ -1,0 +1,25 @@
+schema_version: "0.1"
+message_id: msg-77d8009e-dab9-42d7-b972-43ceb04cbf9b
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: run_resumed
+
+sender_agent_id: product-ui-designer
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: run
+  id: RUN-WI-002-product-ui-designer
+  revision: 3
+
+summary: WI-002 原 Run 已按 Logo 高保真审核反馈恢复执行
+created_at: "2026-07-17T03:33:14Z"
+idempotency_key: run-resumed/littleduck-mvp-001/RUN-WI-002-product-ui-designer/revision-6-logo-correction-1
+
+payload:
+  work_item_id: WI-002
+  work_item_revision: 6
+  run_path: runs/WI-002/product-ui-designer
+  review_message_id: msg-1f7caeb8-cb3e-42a1-a7b3-7b983aff463a
+
