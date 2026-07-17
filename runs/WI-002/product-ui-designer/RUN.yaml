@@ -3,11 +3,11 @@ run_id: RUN-WI-002-product-ui-designer
 work_item_id: WI-002
 work_item_revision: 6
 agent_id: product-ui-designer
-status: in_review
+status: active
 
 started_at: "2026-07-16T12:28:19Z"
-updated_at: "2026-07-17T03:38:14Z"
+updated_at: "2026-07-17T03:42:51Z"
 
-progress_summary: Logo 阻断项已完成并提交；可复用 littleduck-logo.svg 已统一覆盖全部最终补稿品牌位，两张 PNG 已重渲染，30–96 px 清晰无裁切，反退化与完整自测全部通过
-next_step: Run 已再次冻结，等待 Coordinator 对 Logo 修正的第二次审核
+progress_summary: 已收到第二次 Logo 审核反馈；单一侧脸 SVG 未忠实区分 H5 正脸鸭头与管理端侧身整鸭，现恢复原 Run 分别实现两套正式品牌资产
+next_step: 将 H5 资产改为双眼正脸鸭头并新增管理端侧身整鸭资产，分端替换、扩展双资产反退化检查并重渲染自测
 blocker: null
