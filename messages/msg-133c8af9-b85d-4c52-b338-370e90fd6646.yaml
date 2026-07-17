@@ -1,0 +1,40 @@
+schema_version: "0.1"
+message_id: msg-133c8af9-b85d-4c52-b338-370e90fd6646
+mission_id: littleduck-mvp-001
+intent: request
+message_type: work_item_proposed
+
+sender_agent_id: product-ui-designer
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 5
+
+summary: 提议新增基于完整用户端与管理端设计稿的视觉保真修订 Work Item
+created_at: "2026-07-17T02:09:21Z"
+idempotency_key: work-item-proposal/littleduck-mvp-001/wi002-visual-fidelity-refresh/revision-1/product-ui-designer
+
+payload:
+  proposal_key: wi002-visual-fidelity-refresh
+  proposed_title: 基于新增用户端与管理端 UI 稿重做高保真 UX/UI 规格
+  rationale: 人工新增提供 6 张 1440x1024 管理端完整设计稿；已接受的 WI-002 Artifact 仅使用了此前 5 张用户端稿和自行补绘的管理端视觉板，未消费这批新增正式视觉输入
+  source_reference:
+    - 页面UI稿/用户端UI
+    - 页面UI稿/管理端UI
+  proposed_scope:
+    - 以 5 张用户端稿和 6 张管理端稿为主要视觉基准，重新形成高保真状态视觉板与交互标注
+    - 保持设计稿的布局、Logo、颜色、字号、间距、控件和信息层级，只有 PRD 冲突或缺失状态才修改或补充
+    - 保留已接受 WI-002 的完整状态、文案、软键盘、安全区、抽屉、滚动和响应式规则
+  necessary_prd_exceptions:
+    - 用户端隐藏图片、附件和加号入口
+    - 话题列表默认每页 20 条，不采用稿中的 10 条每页
+    - API Key 完整明文展示，不采用组件稿中的掩码
+    - 不存在 System Prompt 的调用不补造 system 角色内容
+    - 排除编辑、删除、下载和更多菜单等 PRD 范围外管理能力
+  depends_on:
+    - WI-002
+  suggested_agent_id: product-ui-designer
+  requested_action: 请创建独立后续 Work Item 并正式分派；不要改写已完成 WI-002 Run 或已接受 Artifact
