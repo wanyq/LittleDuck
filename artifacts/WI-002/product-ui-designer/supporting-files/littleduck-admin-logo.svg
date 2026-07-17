@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">LittleDuck 管理端整鸭品牌 Logo</title>
+  <desc id="desc">绿色圆形内的白色侧身整鸭，包含单眼侧脸、羽冠、橙色鸭嘴、身体、翅膀和双脚</desc>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#157758" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="64" r="60" fill="#31B58B" stroke="#24966F" stroke-width="2"/>
+  <g filter="url(#shadow)">
+    <path fill="#FFFFFF" d="M49 53c8 1 14 6 20 11 9 8 24 8 39-1 3 14-2 28-14 35-15 8-34 4-42-9-6-10-6-23-3-36Z"/>
+    <ellipse cx="50" cy="43" rx="22" ry="23" fill="#FFFFFF"/>
+    <path fill="#FFFFFF" d="M47 24c-1-7 3-12 10-14-1 5 0 8 4 10 3-4 7-5 12-3-4 3-6 7-5 11Z"/>
+    <path fill="#FFFFFF" d="M43 56c3-5 9-8 15-6 7 2 11 8 13 15l-18 17c-7-8-10-17-10-26Z"/>
+    <path fill="#FFAA2F" d="M29 39c-8 1-14 5-18 10 6 5 13 7 20 6 5-1 8-4 8-8-1-5-5-8-10-8Z"/>
+    <path fill="none" stroke="#E98919" stroke-linecap="round" stroke-width="1.6" d="M14 49c7 2 14 2 21 0"/>
+    <ellipse cx="48" cy="39" rx="5.2" ry="6.6" fill="#23262B"/>
+    <ellipse cx="50" cy="37" rx="1.7" ry="2.3" fill="#FFFFFF"/>
+    <ellipse cx="26" cy="45" rx="1.4" ry="1.1" fill="#B96712"/>
+    <path fill="#E6F4EF" stroke="#C4E7DB" stroke-width="1.5" d="M67 70c9 8 21 10 31 4-3 11-11 17-21 16-8-1-13-8-10-20Z"/>
+    <path fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-width="5" d="M68 96v13M88 96v13"/>
+    <path fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-width="5" d="M60 111h13M81 111h13"/>
+  </g>
+</svg>
+
