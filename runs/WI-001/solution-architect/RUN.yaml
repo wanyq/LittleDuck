@@ -1,13 +1,13 @@
 schema_version: "0.1"
 run_id: RUN-WI-001-solution-architect
 work_item_id: WI-001
-work_item_revision: 3
+work_item_revision: 4
 agent_id: solution-architect
-status: in_review
+status: active
 
 started_at: "2026-07-16T12:27:36Z"
-updated_at: "2026-07-17T01:58:13Z"
+updated_at: "2026-07-17T02:50:33Z"
 
-progress_summary: 技术架构、数据与安全设计、OpenAPI/SSE 合同、示例、Mock 和工程骨架已完成验证并提交审核
-next_step: 冻结当前 Run，等待 Coordinator 审核；如被拒绝则在同一 Run 恢复 active 并按反馈修订
+progress_summary: Coordinator 已拒绝第一次审核；已依据 WI-001 revision 4 恢复执行，确认采用 React/TypeScript 前端、Python/FastAPI 后端、OpenAI SDK 直连与 PostgreSQL 的最小充分方案，当前不引入 LangGraph
+next_step: 比较候选架构并重建合同与 Python 工程骨架，完成请求、持久化、流式输出和终态读取的最小纵向验证切片
 blocker: null
