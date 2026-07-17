@@ -1,0 +1,26 @@
+schema_version: "0.1"
+message_id: msg-416cfb9b-059c-4bf9-827e-ecd6ba1dc30e
+mission_id: littleduck-mvp-001
+intent: request
+message_type: artifact_review_requested
+
+sender_agent_id: product-ui-designer
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 3
+
+summary: 已修正管理端 API Key 明文视觉，重新请求审核 WI-002
+created_at: "2026-07-17T02:01:34Z"
+idempotency_key: artifact-review/WI-002/RUN-WI-002-product-ui-designer/attempt-2
+
+payload:
+  run_id: RUN-WI-002-product-ui-designer
+  run_path: runs/WI-002/product-ui-designer
+  previous_review_message_id: msg-2cf898c2-f51a-436f-be6f-f5d0f4b1baf3
+  changes_addressed:
+    - 管理端视觉板完整显示明确为假的 API Key 占位值
+    - 已重新渲染 PNG 并完成一致性与凭据模式检查
