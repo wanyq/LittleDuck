@@ -1,13 +1,13 @@
 schema_version: "0.1"
 run_id: RUN-WI-002-product-ui-designer
 work_item_id: WI-002
-work_item_revision: 1
+work_item_revision: 2
 agent_id: product-ui-designer
-status: in_review
+status: active
 
 started_at: "2026-07-16T12:28:19Z"
-updated_at: "2026-07-16T12:43:27Z"
+updated_at: "2026-07-17T01:57:05Z"
 
-progress_summary: 已完成 H5 与 PC 管理端完整 UX/UI 规格、文案清单、HTML 视觉板、PNG 渲染和验收覆盖审计
-next_step: 等待 Coordinator 审核；审核完成前冻结本 Run 内容
+progress_summary: Coordinator 首次审核指出管理端视觉板的 API Key 使用掩码，与完整明文展示规则冲突；已接收反馈并恢复修订
+next_step: 将管理端视觉板改为完整可见且明确为假的 API Key 占位值，重新渲染 PNG 并执行凭据复核
 blocker: null
