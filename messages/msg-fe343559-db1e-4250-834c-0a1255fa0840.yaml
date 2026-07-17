@@ -1,0 +1,24 @@
+schema_version: "0.1"
+message_id: msg-fe343559-db1e-4250-834c-0a1255fa0840
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: run_resumed
+
+sender_agent_id: product-ui-designer
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: run
+  id: RUN-WI-002-product-ui-designer
+  revision: 2
+
+summary: WI-002 revision 6 原 Run 已恢复执行
+created_at: "2026-07-17T02:49:23Z"
+idempotency_key: run-resumed/littleduck-mvp-001/RUN-WI-002-product-ui-designer/work-item-revision-6
+
+payload:
+  work_item_id: WI-002
+  work_item_revision: 6
+  run_path: runs/WI-002/product-ui-designer
+

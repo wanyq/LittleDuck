@@ -1,0 +1,25 @@
+schema_version: "0.1"
+message_id: msg-67b28c8c-830c-4d77-8193-7b99b57d3fc9
+mission_id: littleduck-mvp-001
+intent: response
+message_type: work_item_assigned
+
+sender_agent_id: product-ui-designer
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 6
+
+summary: 已接受 WI-002 revision 6 重分派并恢复唯一 Run
+created_at: "2026-07-17T02:49:23Z"
+idempotency_key: work-item-assigned/littleduck-mvp-001/WI-002/revision-6/product-ui-designer/reexecution-1
+in_reply_to: msg-44fdb103-c6f8-4c86-8806-4aa5cd683b95
+
+payload:
+  decision: accepted
+  run_id: RUN-WI-002-product-ui-designer
+  run_path: runs/WI-002/product-ui-designer
+
