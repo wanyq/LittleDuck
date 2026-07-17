@@ -1,0 +1,25 @@
+schema_version: "0.1"
+message_id: msg-d1798a0b-862e-46a4-9a42-e746b7f5d246
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: run_resumed
+
+sender_agent_id: product-ui-designer
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: run
+  id: RUN-WI-002-product-ui-designer
+  revision: 4
+
+summary: WI-002 原 Run 已按 H5/管理端双 Logo 审核反馈恢复执行
+created_at: "2026-07-17T03:43:53Z"
+idempotency_key: run-resumed/littleduck-mvp-001/RUN-WI-002-product-ui-designer/revision-6-split-logo-correction-2
+
+payload:
+  work_item_id: WI-002
+  work_item_revision: 6
+  run_path: runs/WI-002/product-ui-designer
+  review_message_id: msg-69139818-a6fd-4fcf-924e-8c16d6773d37
+
