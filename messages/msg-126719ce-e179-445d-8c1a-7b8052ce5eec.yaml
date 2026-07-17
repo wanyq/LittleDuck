@@ -1,0 +1,33 @@
+schema_version: "0.1"
+message_id: msg-126719ce-e179-445d-8c1a-7b8052ce5eec
+mission_id: littleduck-mvp-001
+intent: response
+message_type: work_item_proposal_reviewed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - product-ui-designer
+  - mission-owner
+
+subject:
+  type: work_item
+  id: WI-011
+  revision: 1
+
+summary: 已接受新增正式 UI 稿的高保真修订提议并创建 WI-011
+created_at: "2026-07-17T02:21:40Z"
+in_reply_to: msg-133c8af9-b85d-4c52-b338-370e90fd6646
+idempotency_key: work-item-proposal-review/littleduck-mvp-001/wi002-visual-fidelity-refresh/revision-1
+
+payload:
+  decision: accepted
+  reviewed_proposal_revision: 1
+  work_item_id: WI-011
+  work_item_path: items/WI-011.md
+  rationale: 新增的 6 张管理端正式设计稿构成新的视觉输入；已完成 WI-002 不应被改写，因此使用独立后续 Work Item 和 Run。
+  coordination_changes:
+    - WI-004 revision 4 新增 WI-011 启动依赖，并约定优先消费 WI-011 接受的视觉 Artifact。
+    - WI-005 revision 4 新增 WI-011 启动依赖，并约定优先消费 WI-011 接受的视觉 Artifact。
+  source_inputs:
+    - 页面UI稿/用户端UI
+    - 页面UI稿/管理端UI

@@ -1,0 +1,27 @@
+schema_version: "0.1"
+message_id: msg-a1cd2fa1-5ad2-4ccf-addf-56aa572172d7
+mission_id: littleduck-mvp-001
+intent: request
+message_type: work_item_assignment_requested
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - product-ui-designer
+
+subject:
+  type: work_item
+  id: WI-011
+  revision: 1
+
+summary: 分派 product-ui-designer 执行 WI-011 高保真 UX/UI 修订
+created_at: "2026-07-17T02:21:40Z"
+idempotency_key: work-item-assignment/littleduck-mvp-001/WI-011/revision-1/product-ui-designer
+
+payload:
+  work_item_path: items/WI-011.md
+  assigned_agent_id: product-ui-designer
+  source_artifact: artifacts/WI-002/product-ui-designer
+  source_references:
+    - 页面UI稿/用户端UI
+    - 页面UI稿/管理端UI
+  requested_action: 校验 Mission、WI-011 和新增正式 UI 输入后，创建独立的 RUN-WI-011-product-ui-designer 开始执行；不要修改已完成的 WI-002 Run 或 Artifact。创建 Run 后发送 run_started Notification，完成自测后再发送 artifact_review_requested Request。
