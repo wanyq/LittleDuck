@@ -41,3 +41,4 @@ temp/
 
 # Agent-local coordination state and private working materials
 .agent-local/
+.coordination-local/

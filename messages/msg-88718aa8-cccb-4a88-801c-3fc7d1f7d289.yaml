@@ -1,0 +1,28 @@
+schema_version: "0.2"
+message_id: msg-88718aa8-cccb-4a88-801c-3fc7d1f7d289
+mission_id: littleduck-mvp-001
+coordination_epoch: 1
+intent: notification
+message_type: mission_state_changed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - "@all"
+
+subject:
+  type: mission
+  id: littleduck-mvp-001
+  revision: 2
+
+summary: LittleDuck Mission 已从 Git 文件通信切换为共享本地文件通信
+created_at: "2026-07-17T10:07:20Z"
+idempotency_key: coordination-cutover/littleduck-mvp-001/local-files/epoch-1
+
+payload:
+  change_type: coordination_transport_migration
+  previous_transport: git
+  current_transport: local_files
+  coordination_epoch: 1
+  legacy_baseline_commit: dfe09bf21a144f8877f96bcfc0c2d6bfb2cbec75
+  workflow_path: WORKFLOW.yaml
+  required_skill: coordinate-agents-with-local-files

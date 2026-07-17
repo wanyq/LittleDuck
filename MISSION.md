@@ -52,10 +52,12 @@
 
 ## 任务约束
 
-- 使用 `coordinate-agents-with-git-files` 文件协议协调所有一级 Agent；
-- GitHub/Git 仓库是一级 Agent 之间唯一的正式共享协作介质；
+- 使用 `coordinate-agents-with-local-files` 文件协议协调所有一级 Agent；
+- 人工指定的共享本地目录是一级 Agent 之间唯一的实时权威协作空间，正式状态以其中的 Mission、Work Item、Agent、Run、Message 和 Artifact 文件为准；
+- GitHub/Git 仅由 Coordinator 作为单一发布者执行阶段性归档和备份，不作为 Message 投递、Polling、状态判定或 Agent 间同步的前提；
 - 不使用 GitHub Issue、Pull Request、评论、Projects、Actions、标签或 Webhook 协调工作；
-- 所有一级 Agent 直接使用共享仓库的 `main` 分支，并遵守协议规定的文件写入权；
+- 所有一级 Agent 访问同一共享本地目录并遵守协议规定的单路径写入权；除 Coordinator 的归档动作外，其他一级 Agent 不执行 Git add、commit、pull、merge 或 push；
+- 需要某个一级 Agent 立即关注时，先发布不可变 Message 文件，再通过 Codex 任务通知发送 message_id 和相对路径；任务通知不是正式事实，通知失败时由 Polling 兜底；
 - Mission Owner 的一级 `agent_id` 为 `mission-owner`；
 - Coordinator 的一级 `agent_id` 为 `coordinator`，由用户单独启动；
 - 一级 Agent 可以使用 Sub-agent 完成内部并行工作，但 Sub-agent 不登记到共享协议、不直接 Polling 或收发协议 Message；

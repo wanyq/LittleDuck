@@ -1,10 +1,23 @@
-schema_version: "0.1"
+schema_version: "0.2"
 mission_id: littleduck-mvp-001
-mission_revision: 1
+mission_revision: 2
 status: active
 
 mission_owner: mission-owner
 coordinator: coordinator
+
+coordination:
+  transport: local_files
+  epoch: 1
+  direct_notifications: codex_tasks
+  legacy_message_history:
+    mode: read_only
+    schema_version: "0.1"
+    baseline_git_commit: "dfe09bf21a144f8877f96bcfc0c2d6bfb2cbec75"
+    cutover_at: "2026-07-17T10:07:20Z"
+  git_archival:
+    mode: coordinator_only
+    publisher_agent_id: coordinator
 
 polling:
   interval_seconds: 600
@@ -12,4 +25,4 @@ polling:
   reconciliation_minutes: 30
 
 created_at: "2026-07-16T11:50:17Z"
-updated_at: "2026-07-17T08:25:10Z"
+updated_at: "2026-07-17T10:07:20Z"
