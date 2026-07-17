@@ -30,13 +30,14 @@
 2. [`supporting-files/copy-catalog.md`](supporting-files/copy-catalog.md)：按稳定 ID 组织的用户端和管理端最终文案。
 3. [`supporting-files/input-mapping.md`](supporting-files/input-mapping.md)：5 张用户端 + 6 张管理端输入到最终页面、组件和状态的逐项映射。
 4. [`supporting-files/design-decisions.md`](supporting-files/design-decisions.md)：PRD 例外、正式稿取舍和未新增能力声明。
-5. [`supporting-files/h5-visual-board.html`](supporting-files/h5-visual-board.html)：H5 高保真基准与最终状态补稿源码。
-6. [`supporting-files/h5-visual-board.png`](supporting-files/h5-visual-board.png)：1680 × 3200 Chrome 渲染结果。
-7. [`supporting-files/admin-visual-board.html`](supporting-files/admin-visual-board.html)：PC 管理端高保真基准、最终页面和状态矩阵源码。
-8. [`supporting-files/admin-visual-board.png`](supporting-files/admin-visual-board.png)：1800 × 5900 Chrome 渲染结果。
-9. [`supporting-files/scripts/render-boards.sh`](supporting-files/scripts/render-boards.sh)：可重复执行的两板渲染脚本。
-10. [`supporting-files/scripts/validate-delivery.sh`](supporting-files/scripts/validate-delivery.sh)：输入映射、内容、尺寸和凭据模式自动检查。
-11. [`supporting-files/self-test.md`](supporting-files/self-test.md)：环境、步骤、自动结果、人工视觉检查和已知限制。
+5. [`supporting-files/littleduck-logo.svg`](supporting-files/littleduck-logo.svg)：最终补稿统一使用的可复用鸭子品牌矢量资产，保留羽冠、眼睛高光、橙色鸭嘴与绿色外形。
+6. [`supporting-files/h5-visual-board.html`](supporting-files/h5-visual-board.html)：H5 高保真基准与最终状态补稿源码。
+7. [`supporting-files/h5-visual-board.png`](supporting-files/h5-visual-board.png)：1680 × 3200 Chrome 渲染结果。
+8. [`supporting-files/admin-visual-board.html`](supporting-files/admin-visual-board.html)：PC 管理端高保真基准、最终页面和状态矩阵源码。
+9. [`supporting-files/admin-visual-board.png`](supporting-files/admin-visual-board.png)：1800 × 5900 Chrome 渲染结果。
+10. [`supporting-files/scripts/render-boards.sh`](supporting-files/scripts/render-boards.sh)：可重复执行的两板渲染脚本。
+11. [`supporting-files/scripts/validate-delivery.sh`](supporting-files/scripts/validate-delivery.sh)：输入映射、内容、尺寸、正式 Logo 使用与凭据模式自动检查。
+12. [`supporting-files/self-test.md`](supporting-files/self-test.md)：环境、步骤、自动结果、人工视觉检查和已知限制。
 
 ## 验证结论
 
@@ -44,5 +45,6 @@
 - 11 张正式输入全部映射，无遗漏页面；
 - H5 最终补稿覆盖加载、空态、发送失败、生成、停止、重试、抽屉锁定、断网、键盘和安全区；
 - PC 最终补稿覆盖登录错误、配置测试/保存、20 条分页、聊天多状态、真实 Prompt、空态、失败和复制；
+- H5 注册/导航/欢迎/助手头像/抽屉与管理端登录/侧栏已统一使用 `littleduck-logo.svg`，不再存在抽象 CSS 圆环 Logo；
 - `validate-delivery.sh` 全部通过；凭据模式扫描未发现私钥、Token 或疑似真实 API Key；
 - 原始正式稿缩略图只作为输入映射证据，所有 PRD 冲突均有黄色标注；最终实现以“最终实现补稿”和 `ux-ui-spec.md` 为准。

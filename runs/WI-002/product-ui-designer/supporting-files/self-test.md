@@ -2,6 +2,8 @@
 
 执行时间：2026-07-17T03:03:32Z
 
+Logo 退修复测时间：2026-07-17T03:36:01Z
+
 环境：macOS 26.5.1、Google Chrome 150.0.7871.116、Git 2.50.1
 
 ## 1. 可复现命令
@@ -26,6 +28,8 @@ git diff --check
 | H5 PNG | PASS | 1680 × 3200、RGB、非隔行 PNG |
 | 管理端 PNG | PASS | 1800 × 5900、RGB、非隔行 PNG |
 | HTML 基础内容 | PASS | 两板均有 doctype、PRD 标注、正式输入与最终补稿区域 |
+| 可复用正式 Logo | PASS | 两板最终补稿均引用 `littleduck-logo.svg`；SVG 包含羽冠、黑色眼睛/高光、双层橙色鸭嘴、绿色圆形和描边 |
+| Logo 反退化 | PASS | 未命中 `.duck:before/.duck:after` 或 `.duck` 的绿色圆环背景拼装模式 |
 | API Key 假值 | PASS | 管理板源码使用完整 `EXAMPLE_NOT_A_REAL_OPENAI_API_KEY_000000` |
 | 凭据模式扫描 | PASS | 未命中私钥头、AWS Key、GitHub Token 或常见 OpenAI Key 模式 |
 | Shell 语法 | PASS | 两个脚本均通过 `sh -n` |
@@ -37,6 +41,7 @@ PASS png: h5-visual-board.png 1680x3200
 PASS png: admin-visual-board.png 1800x5900
 PASS 11 inputs mapped
 PASS required state/rule coverage
+PASS reusable formal logo usage and anti-regression check
 PASS credential pattern scan
 PASS delivery validation
 ```
@@ -46,8 +51,10 @@ PASS delivery validation
 已用原始分辨率查看两张 PNG，并核对 HTML 渲染结果：
 
 - H5：5 张正式稿完整显示；注册、空态、流式、停止、失败、重试、抽屉锁定、键盘、安全区、加载、搜索空态、发送失败与断网补稿均未横向溢出或裁切。
+- H5 最终补稿的注册大 Logo、导航、欢迎、助手头像和抽屉均使用同一 SVG；34 px 小头像仍能识别黑色眼睛、高光和橙色鸭嘴，76 px 品牌位无变形。
 - H5 最终补稿输入区仅保留文本与发送/停止；正式输入缩略图中的“+”和图片图标已用黄色 PRD 差异说明标出，不作为最终实现。
 - 管理端：6 张正式稿完整显示；登录、配置、列表、聊天详情、调用详情和通用状态矩阵均在画布内。
+- 管理端登录补稿使用 96 px SVG，侧栏使用 30 px SVG；两种尺寸均无裁切，绿色外形、白色鸭头、羽冠、眼睛和鸭嘴清晰。
 - 配置正式稿缩略图的疑似真实格式示例在渲染时被白色覆盖层替换为完整明文假值；最终补稿同样只使用该假值。
 - 列表最终补稿明确为“每页 20 条”；正式稿的 10 条/页仅留作输入映射证据并有黄色差异说明。
 - 调用详情最终补稿只显示实际 user/assistant 角色；无虚构 system 行，失败卡保留实际错误与部分返回。
@@ -58,6 +65,7 @@ PASS delivery validation
 - `ux-ui-spec.md` 的页面、状态、迁移和响应式规则与两张视觉板一致。
 - `copy-catalog.md` 的按钮、错误、空态、状态、Toast 和恢复动作均可在规格或视觉板找到使用场景。
 - `input-mapping.md` 与 `design-decisions.md` 对同一冲突给出一致结论：纯文本、20 条分页、API Key 明文假值、System Prompt 条件渲染、排除范围外动作。
+- `ux-ui-spec.md`、`design-decisions.md`、HTML 和验证脚本对正式 Logo 资产及禁止抽象占位的结论一致。
 - HTML 是 PNG 的唯一渲染源，PNG 由 `render-boards.sh` 重新生成；没有手工后期修改 PNG。
 
 ## 5. 已知限制

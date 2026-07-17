@@ -12,6 +12,7 @@ $SUPPORT/ux-ui-spec.md
 $SUPPORT/copy-catalog.md
 $SUPPORT/input-mapping.md
 $SUPPORT/design-decisions.md
+$SUPPORT/littleduck-logo.svg
 $SUPPORT/h5-visual-board.html
 $SUPPORT/h5-visual-board.png
 $SUPPORT/admin-visual-board.html
@@ -47,6 +48,15 @@ fi
 for html in "$SUPPORT/h5-visual-board.html" "$SUPPORT/admin-visual-board.html"; do
   rg -Fq '<!doctype html>' "$html"
   rg -Fq 'PRD' "$html"
+  rg -Fq 'background:url("littleduck-logo.svg")' "$html" || { echo "FAIL formal-logo-not-used: $html"; exit 1; }
+  if rg -n '\.duck\{[^}]*background:var\(--g\)|\.duck:(before|after)' "$html"; then
+    echo "FAIL abstract-duck-placeholder-found: $html"
+    exit 1
+  fi
+done
+
+for detail in '<ellipse cx="81" cy="49"' '#23262B' '#FFAA2F' '#31B58B' 'stroke="#24966F"'; do
+  rg -Fq "$detail" "$SUPPORT/littleduck-logo.svg" || { echo "FAIL logo-detail-missing: $detail"; exit 1; }
 done
 
 if command -v sips >/dev/null 2>&1; then
@@ -61,5 +71,6 @@ fi
 
 echo "PASS 11 inputs mapped"
 echo "PASS required state/rule coverage"
+echo "PASS reusable formal logo usage and anti-regression check"
 echo "PASS credential pattern scan"
 echo "PASS delivery validation"
