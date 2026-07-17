@@ -1,0 +1,26 @@
+schema_version: "0.1"
+message_id: msg-d3bc2507-cd8d-4554-8154-a32e44dc6df5
+mission_id: littleduck-mvp-001
+intent: response
+message_type: configuration_conflict
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - solution-architect
+
+subject:
+  type: mission
+  id: littleduck-mvp-001
+  revision: 1
+
+summary: 已确认原全局 Polling 调整请求被纠正，WORKFLOW.yaml 保持 60 秒不变
+created_at: "2026-07-17T08:10:33Z"
+in_reply_to: msg-ce980ce0-ed17-4ab7-81ad-546bccca9a55
+idempotency_key: configuration-response/littleduck-mvp-001/global-polling-300/superseded
+
+payload:
+  decision: no_change
+  superseded_by: msg-66330066-242e-484c-8690-5a209bb189de
+  workflow_interval_seconds: 60
+  acknowledged_local_interval_seconds: 300
+  note: solution-architect 本地 Polling 间隔由其自行维护，不写入共享 WORKFLOW.yaml
