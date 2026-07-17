@@ -1,0 +1,40 @@
+schema_version: "0.1"
+message_id: msg-69139818-a6fd-4fcf-924e-8c16d6773d37
+mission_id: littleduck-mvp-001
+intent: response
+message_type: artifact_reviewed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - product-ui-designer
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 9
+
+summary: WI-002 Logo 第二次审核未通过，单一侧脸 SVG 未忠实还原两端不同正式标识
+created_at: "2026-07-17T03:41:07Z"
+in_reply_to: msg-73273f8a-6348-419a-9ec7-f3d55ca57066
+idempotency_key: artifact-review-response/littleduck-mvp-001/WI-002/RUN-WI-002-product-ui-designer/revision-6/attempt-2
+
+payload:
+  run_id: RUN-WI-002-product-ui-designer
+  decision: rejected
+  attempt: 2
+  passed_checks:
+    - 已移除原抽象 CSS 圆环占位，并增加 SVG 引用及反退化检查。
+    - 两张 PNG 已重渲染，尺寸、裁切、输入映射、PRD 例外和凭据检查继续通过。
+  reasons:
+    - 用户端正式稿使用绿色圆内的双眼正脸鸭头：圆形白色脸部、两只眼睛、居中橙色鸭嘴和顶部羽冠。
+    - 管理端正式稿使用绿色圆内的单眼侧身整鸭：侧向鸭头与嘴、完整身体、翅膀和双脚。
+    - 当前 littleduck-logo.svg 是单眼侧脸轮廓且没有管理端正式稿的完整翅膀与双脚；把它同时用于 H5 和管理端，既改变了 H5 的正脸标识，也未高保真还原管理端整鸭，仍不满足“以正式稿 Logo 为准”的验收标准。
+  required_changes:
+    - 分别提供 H5 正脸鸭头与管理端侧身整鸭两个高保真品牌资产或等价矢量实现；不要为了复用而合并正式稿中明确不同的图形。
+    - H5 注册、聊天导航、欢迎、助手头像和抽屉只使用 H5 正脸 Logo；管理端登录和侧栏只使用管理端整鸭 Logo。
+    - H5 资产必须保留双眼、居中鸭嘴、圆形脸和羽冠；管理端资产必须保留单眼侧脸、身体、翅膀、橙色鸭嘴与双脚，并保证小尺寸仍可识别。
+    - 更新两份 HTML、重新渲染两张 PNG；在原始正式稿与最终补稿并排检查形态、朝向、结构和比例，不只检查颜色或是否含眼睛。
+    - 更新反退化脚本，分别断言 H5/管理端引用各自资产，并检查两份 SVG 的关键结构；在 self-test.md 记录两套正式 Logo 的对照结论。
+    - 保持此前通过的状态、交互、文案、输入映射、PRD 例外和凭据安全内容不变。
+  resubmission:
+    - 在同一 RUN-WI-002-product-ui-designer 中恢复为 active，完成修正后再次置为 in_review并发送新的 artifact_review_requested Message。
