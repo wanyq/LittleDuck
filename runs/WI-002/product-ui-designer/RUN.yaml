@@ -1,13 +1,13 @@
 schema_version: "0.1"
 run_id: RUN-WI-002-product-ui-designer
 work_item_id: WI-002
-work_item_revision: 3
+work_item_revision: 6
 agent_id: product-ui-designer
-status: completed
+status: active
 
 started_at: "2026-07-16T12:28:19Z"
-updated_at: "2026-07-17T02:04:30Z"
+updated_at: "2026-07-17T02:48:24Z"
 
-progress_summary: 第二次审核已通过；管理端 API Key 明文视觉、完整 UX/UI 规格与渲染材料已复制为正式 Artifact
-next_step: 无；本 Run 已完成
+progress_summary: 已收到 WI-002 revision 6 正式重分派；按 5 张用户端与 6 张管理端正式 UI 稿恢复原 Run，开始完整重做交付
+next_step: 发送分派回执与 run_resumed 消息，然后重制高保真视觉板、完整状态规格、输入映射、设计决策与可复现自测记录
 blocker: null
