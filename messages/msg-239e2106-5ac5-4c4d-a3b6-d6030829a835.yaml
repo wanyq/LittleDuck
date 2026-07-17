@@ -1,0 +1,39 @@
+schema_version: "0.1"
+message_id: msg-239e2106-5ac5-4c4d-a3b6-d6030829a835
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: artifact_accepted
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - product-ui-designer
+  - mission-owner
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 12
+
+summary: WI-002 重执行后的完整 UX/UI Artifact 已生成并接受
+created_at: "2026-07-17T03:54:09Z"
+idempotency_key: artifact-accepted/littleduck-mvp-001/WI-002/revision-12/product-ui-designer
+
+payload:
+  run_id: RUN-WI-002-product-ui-designer
+  artifact_path: artifacts/WI-002/product-ui-designer
+  review_response_message_id: msg-74184c52-a57e-4c64-ac8a-374a23e4a5ef
+  files:
+    - answer.md
+    - supporting-files/ux-ui-spec.md
+    - supporting-files/copy-catalog.md
+    - supporting-files/design-decisions.md
+    - supporting-files/input-mapping.md
+    - supporting-files/self-test.md
+    - supporting-files/h5-visual-board.html
+    - supporting-files/h5-visual-board.png
+    - supporting-files/admin-visual-board.html
+    - supporting-files/admin-visual-board.png
+    - supporting-files/littleduck-logo.svg
+    - supporting-files/littleduck-admin-logo.svg
+    - supporting-files/scripts/render-boards.sh
+    - supporting-files/scripts/validate-delivery.sh

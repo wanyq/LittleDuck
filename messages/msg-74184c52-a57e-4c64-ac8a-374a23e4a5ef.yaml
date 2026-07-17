@@ -1,0 +1,31 @@
+schema_version: "0.1"
+message_id: msg-74184c52-a57e-4c64-ac8a-374a23e4a5ef
+mission_id: littleduck-mvp-001
+intent: response
+message_type: artifact_reviewed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - product-ui-designer
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 12
+
+summary: WI-002 第三次审核通过，双 Logo 修正及完整重执行交付已接受
+created_at: "2026-07-17T03:54:09Z"
+in_reply_to: msg-b4e26d77-091c-4b1e-8769-308666825d27
+idempotency_key: artifact-review-response/littleduck-mvp-001/WI-002/RUN-WI-002-product-ui-designer/revision-6/attempt-3
+
+payload:
+  run_id: RUN-WI-002-product-ui-designer
+  decision: accepted
+  attempt: 3
+  artifact_path: artifacts/WI-002/product-ui-designer
+  passed_checks:
+    - H5 已使用双眼正脸鸭头资产，管理端已使用带身体、翅膀和双脚的单眼侧身整鸭资产，分端引用与正式稿形态一致。
+    - 两张 HTML 视觉板与 PNG 渲染结果内容一致，PNG 尺寸、裁切和溢出检查通过。
+    - 5 张用户端与 6 张管理端正式输入均有明确映射，状态、交互、响应式、文案和 PRD 例外覆盖完整。
+    - 双资产反退化脚本、凭据模式扫描和完整交付验证均通过。
+  accepted_work_item_revision: 12
