@@ -16,6 +16,14 @@ const terminalEvents = new Set([
   "generation.stopped"
 ]);
 
+function requireKeys(file, event, data, keys) {
+  for (const key of keys) {
+    if (!(key in data)) {
+      throw new Error(`${file}: ${event} is missing ${key}`);
+    }
+  }
+}
+
 for (const file of files) {
   const source = await readFile(resolve(examplesDir, file), "utf8");
   const frames = source.trim().split(/\n\n+/);
@@ -40,21 +48,56 @@ for (const file of files) {
     }
 
     const data = JSON.parse(dataText);
+    if (fields.has("id")) {
+      throw new Error(`${file}: P0 protocol does not publish replayable SSE id fields`);
+    }
     if (event === "heartbeat") {
-      if (fields.has("id")) {
-        throw new Error(`${file}: heartbeat must not have id`);
+      if ("sequence" in data) {
+        throw new Error(`${file}: heartbeat must not advance the business sequence`);
       }
       continue;
     }
 
     firstBusinessEvent ??= event;
-    const id = Number(fields.get("id"));
-    if (id !== expectedSequence || data.sequence !== expectedSequence) {
+    requireKeys(file, event, data, ["generationId", "sequence", "occurredAt"]);
+    if (data.sequence !== expectedSequence) {
       throw new Error(
-        `${file}: expected sequence ${expectedSequence}, got id=${id} data.sequence=${data.sequence}`
+        `${file}: expected data.sequence=${expectedSequence}, got ${data.sequence}`
       );
     }
     expectedSequence += 1;
+
+    if (event === "generation.started") {
+      requireKeys(file, event, data, [
+        "kind",
+        "conversationId",
+        "userMessageId",
+        "assistantMessageId",
+        "temporaryTitle"
+      ]);
+    } else if (event === "generation.delta") {
+      requireKeys(file, event, data, ["assistantMessageId", "delta", "accumulatedLength"]);
+    } else if (terminalEvents.has(event)) {
+      requireKeys(file, event, data, ["generation", "assistantMessage"]);
+      const expectedStatus = event.slice("generation.".length);
+      if (
+        data.generation.status !== expectedStatus ||
+        data.assistantMessage.status !== expectedStatus
+      ) {
+        throw new Error(`${file}: ${event} terminal objects do not share ${expectedStatus}`);
+      }
+      if (event === "generation.failed") {
+        requireKeys(file, event, data, ["error"]);
+      }
+      if (event === "generation.stopped") {
+        requireKeys(file, event, data, ["stoppedBy"]);
+      }
+      if (event === "generation.completed") {
+        requireKeys(file, event, data, ["titleWillBeAttempted"]);
+      }
+    } else {
+      throw new Error(`${file}: unknown business event ${event}`);
+    }
 
     if (terminalEvents.has(event)) {
       terminalCount += 1;
@@ -68,5 +111,5 @@ for (const file of files) {
     throw new Error(`${file}: expected exactly one terminal event`);
   }
 
-  console.log(`OK ${file}: ${expectedSequence - 1} persisted events`);
+  console.log(`OK ${file}: ${expectedSequence - 1} ordered business events`);
 }

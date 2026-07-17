@@ -146,8 +146,8 @@ export interface paths {
         };
         /**
          * Load messages, starting with the latest 30
-         * @description Without before, returns the latest messages in chronological order.
-         *     With before, returns an older page in chronological order for prepending.
+         * @description Returns the requested page in chronological order. The default pageSize
+         *     is 30. The client loads the last page first, then requests earlier pages.
          */
         get: operations["listUserConversationMessages"];
         put?: never;
@@ -172,9 +172,9 @@ export interface paths {
          * @description conversationId is omitted for a new unsaved conversation. The first
          *     successful persistence transaction creates the conversation, temporary
          *     title, user message, assistant placeholder, generation and LLM call.
-         *     Repeating the same request with the same Idempotency-Key replays or
-         *     continues the original generation. A different request body with the
-         *     same key returns 409 IDEMPOTENCY_KEY_REUSED.
+         *     clientMessageId is generated once by the browser. Repeating it for the
+         *     same user returns 409 DUPLICATE_MESSAGE with the existing generationId,
+         *     so the client can read authoritative state without creating another message.
          */
         post: operations["createUserGeneration"];
         delete?: never;
@@ -192,29 +192,6 @@ export interface paths {
         };
         /** Read the authoritative generation state */
         get: operations["getUserGeneration"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/user/generations/{generationId}/stream": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Replay and, if active, continue a generation stream
-         * @description Replays events with sequence greater than after or Last-Event-ID.
-         *     If neither is present, replays from sequence 1. When after equals the
-         *     terminal sequence, returns 204. Stream events are retained at least
-         *     24 hours; the final message and generation remain available afterward.
-         */
-        get: operations["resumeUserGenerationStream"];
         put?: never;
         post?: never;
         delete?: never;
@@ -404,7 +381,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all topic messages in chronological cursor pages */
+        /** List all topic messages in chronological pages */
         get: operations["listAdminTopicMessages"];
         put?: never;
         post?: never;
@@ -445,11 +422,8 @@ export interface components {
         HealthResponse: {
             /** @enum {string} */
             status: "ok" | "degraded";
-            /**
-             * @description not_checked is permitted only for the WI-001 skeleton
-             * @enum {string}
-             */
-            database: "ok" | "unavailable" | "not_checked";
+            /** @enum {string} */
+            database: "ok" | "unavailable";
             /** Format: date-time */
             time: string;
         };
@@ -470,8 +444,6 @@ export interface components {
         };
         UserSessionResponse: {
             user: components["schemas"]["User"];
-            /** @description Store in memory or session storage; send on mutations */
-            csrfToken: string;
             /** Format: date-time */
             expiresAt: string;
         };
@@ -487,7 +459,6 @@ export interface components {
         };
         AdminSessionResponse: {
             admin: components["schemas"]["Admin"];
-            csrfToken: string;
             /** Format: date-time */
             expiresAt: string;
         };
@@ -505,8 +476,9 @@ export interface components {
         };
         ConversationPage: {
             items: components["schemas"]["ConversationSummary"][];
-            nextCursor?: string | null;
-            hasMore: boolean;
+            page: number;
+            pageSize: number;
+            total: number;
         };
         ConversationDetailResponse: {
             conversation: components["schemas"]["ConversationSummary"];
@@ -538,8 +510,9 @@ export interface components {
         };
         MessagePage: {
             items: components["schemas"]["Message"][];
-            beforeCursor?: string | null;
-            hasMoreBefore: boolean;
+            page: number;
+            pageSize: number;
+            total: number;
         };
         CreateGenerationRequest: {
             /**
@@ -554,6 +527,13 @@ export interface components {
             clientMessageId: string;
             content: string;
         };
+        RetryGenerationRequest: {
+            /**
+             * Format: uuid
+             * @description Stable browser-generated ID used to prevent duplicate retries
+             */
+            clientRetryId: string;
+        };
         Generation: {
             /** Format: uuid */
             id: string;
@@ -566,11 +546,8 @@ export interface components {
             /** @enum {string} */
             kind: "chat" | "retry";
             /** @enum {string} */
-            status: "queued" | "streaming" | "completed" | "failed" | "stopped";
-            /** Format: int64 */
-            lastEventSequence: number;
-            /** Format: date-time */
-            cancelRequestedAt?: string;
+            status: "streaming" | "completed" | "failed" | "stopped";
+            stopRequested?: boolean;
             /** Format: date-time */
             startedAt?: string;
             /** Format: date-time */
@@ -591,9 +568,13 @@ export interface components {
             sequence: number;
             /** @enum {string} */
             kind: "chat" | "retry";
-            conversation: components["schemas"]["ConversationSummary"];
-            userMessage: components["schemas"]["Message"];
-            assistantMessage: components["schemas"]["Message"];
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: uuid */
+            userMessageId: string;
+            /** Format: uuid */
+            assistantMessageId: string;
+            temporaryTitle: string;
             /** Format: date-time */
             occurredAt: string;
         };
@@ -614,10 +595,10 @@ export interface components {
             generationId: string;
             /** Format: int64 */
             sequence: number;
+            generation: components["schemas"]["Generation"];
             assistantMessage: components["schemas"]["Message"];
-            conversation: components["schemas"]["ConversationSummary"];
-            /** @enum {string} */
-            titleGeneration: "queued" | "not_needed";
+            /** @description True when the service will attempt the non-blocking first-title call */
+            titleWillBeAttempted: boolean;
             /** Format: date-time */
             occurredAt: string;
         };
@@ -626,6 +607,7 @@ export interface components {
             generationId: string;
             /** Format: int64 */
             sequence: number;
+            generation: components["schemas"]["Generation"];
             assistantMessage: components["schemas"]["Message"];
             error: components["schemas"]["PublicGenerationError"];
             /** Format: date-time */
@@ -636,6 +618,7 @@ export interface components {
             generationId: string;
             /** Format: int64 */
             sequence: number;
+            generation: components["schemas"]["Generation"];
             assistantMessage: components["schemas"]["Message"];
             /** @enum {string} */
             stoppedBy: "user" | "logout";
@@ -701,16 +684,18 @@ export interface components {
         };
         AdminTopicPage: {
             items: components["schemas"]["AdminTopicSummary"][];
-            nextCursor?: string | null;
-            hasMore: boolean;
+            page: number;
+            pageSize: number;
+            total: number;
         };
         AdminTopicResponse: {
             topic: components["schemas"]["AdminTopicSummary"];
         };
         AdminMessagePage: {
             items: components["schemas"]["Message"][];
-            nextCursor?: string | null;
-            hasMore: boolean;
+            page: number;
+            pageSize: number;
+            total: number;
         };
         PromptItem: {
             /** @enum {string} */
@@ -742,8 +727,9 @@ export interface components {
         };
         LlmCallPage: {
             items: components["schemas"]["LlmCall"][];
-            nextCursor?: string | null;
-            hasMore: boolean;
+            page: number;
+            pageSize: number;
+            total: number;
         };
         ErrorDetail: {
             field?: string;
@@ -751,9 +737,14 @@ export interface components {
         };
         Error: {
             /** @enum {string} */
-            code: "VALIDATION_ERROR" | "INVALID_VERIFICATION_CODE" | "USER_ALREADY_EXISTS" | "USER_NOT_REGISTERED" | "INVALID_CREDENTIALS" | "UNAUTHENTICATED" | "FORBIDDEN" | "RESOURCE_NOT_FOUND" | "RATE_LIMITED" | "CURSOR_INVALID" | "DATE_RANGE_INVALID" | "GENERATION_IN_PROGRESS" | "RETRY_NOT_ALLOWED" | "IDEMPOTENCY_KEY_REUSED" | "LLM_NOT_CONFIGURED" | "LLM_UNAVAILABLE" | "STREAM_REPLAY_EXPIRED" | "INTERNAL_ERROR";
+            code: "VALIDATION_ERROR" | "INVALID_VERIFICATION_CODE" | "USER_ALREADY_EXISTS" | "USER_NOT_REGISTERED" | "INVALID_CREDENTIALS" | "UNAUTHENTICATED" | "FORBIDDEN" | "RESOURCE_NOT_FOUND" | "RATE_LIMITED" | "PAGE_INVALID" | "DATE_RANGE_INVALID" | "UNSUPPORTED_MEDIA_TYPE" | "GENERATION_IN_PROGRESS" | "RETRY_NOT_ALLOWED" | "DUPLICATE_MESSAGE" | "LLM_NOT_CONFIGURED" | "LLM_UNAVAILABLE" | "INTERNAL_ERROR";
             message: string;
             requestId: string;
+            /**
+             * Format: uuid
+             * @description Present for DUPLICATE_MESSAGE so the client can read existing state
+             */
+            generationId?: string;
             details?: components["schemas"]["ErrorDetail"][];
         };
         ErrorEnvelope: {
@@ -761,7 +752,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Invalid input, verification code, cursor or date range */
+        /** @description Invalid input, verification code, page or date range */
         BadRequest: {
             headers: {
                 [name: string]: unknown;
@@ -788,7 +779,7 @@ export interface components {
                 "application/json": components["schemas"]["ErrorEnvelope"];
             };
         };
-        /** @description CSRF or origin validation failed */
+        /** @description Same-origin or authorization validation failed */
         Forbidden: {
             headers: {
                 [name: string]: unknown;
@@ -846,14 +837,9 @@ export interface components {
         };
     };
     parameters: {
-        CsrfToken: string;
-        /**
-         * @description Unique within the current user session. Reuse is allowed only for an
-         *     identical normalized request body.
-         */
-        IdempotencyKey: string;
-        /** @description Opaque signed cursor returned by the previous page */
-        Cursor: string;
+        /** @description One-based page number */
+        Page: number;
+        PageSize: number;
         ConversationId: string;
         GenerationId: string;
         AssistantMessageId: string;
@@ -1030,9 +1016,7 @@ export interface operations {
     logoutUser: {
         parameters: {
             query?: never;
-            header: {
-                "X-CSRF-Token": components["parameters"]["CsrfToken"];
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -1055,9 +1039,9 @@ export interface operations {
             query?: {
                 /** @description Title contains match. Empty or omitted means grouped list. */
                 query?: string;
-                /** @description Opaque signed cursor returned by the previous page */
-                cursor?: components["parameters"]["Cursor"];
-                limit?: number;
+                /** @description One-based page number */
+                page?: components["parameters"]["Page"];
+                pageSize?: components["parameters"]["PageSize"];
             };
             header?: never;
             path?: never;
@@ -1105,9 +1089,9 @@ export interface operations {
     listUserConversationMessages: {
         parameters: {
             query?: {
-                /** @description Opaque signed cursor for an older page */
-                before?: string;
-                limit?: number;
+                /** @description One-based page number */
+                page?: components["parameters"]["Page"];
+                pageSize?: number;
             };
             header?: never;
             path: {
@@ -1134,14 +1118,7 @@ export interface operations {
     createUserGeneration: {
         parameters: {
             query?: never;
-            header: {
-                "X-CSRF-Token": components["parameters"]["CsrfToken"];
-                /**
-                 * @description Unique within the current user session. Reuse is allowed only for an
-                 *     identical normalized request body.
-                 */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -1161,11 +1138,9 @@ export interface operations {
                 };
                 content: {
                     /**
-                     * @example id: 1
-                     *     event: generation.started
+                     * @example event: generation.started
                      *     data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":1,"kind":"chat","occurredAt":"2026-07-16T12:00:00Z"}
                      *
-                     *     id: 2
                      *     event: generation.delta
                      *     data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":2,"assistantMessageId":"4cbe9c70-74ff-4d5c-a70f-131722b21589","delta":"当然可以。","accumulatedLength":6,"occurredAt":"2026-07-16T12:00:01Z"}
                      */
@@ -1175,7 +1150,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description Active generation or idempotency conflict */
+            /** @description Active generation or duplicate clientMessageId */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1220,66 +1195,10 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    resumeUserGenerationStream: {
-        parameters: {
-            query?: {
-                after?: number;
-            };
-            header?: {
-                "Last-Event-ID"?: number;
-            };
-            path: {
-                generationId: components["parameters"]["GenerationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Replayed and/or live SSE */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": string;
-                };
-            };
-            /** @description Client already has the terminal event */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-            /** @description Replay events expired; refresh messages and generation state */
-            410: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "STREAM_REPLAY_EXPIRED",
-                     *         "message": "流式记录已过期，请刷新会话查看最终状态",
-                     *         "requestId": "req_01"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
     stopUserGeneration: {
         parameters: {
             query?: never;
-            header: {
-                "X-CSRF-Token": components["parameters"]["CsrfToken"];
-            };
+            header?: never;
             path: {
                 generationId: components["parameters"]["GenerationId"];
             };
@@ -1313,20 +1232,17 @@ export interface operations {
     retryAssistantMessage: {
         parameters: {
             query?: never;
-            header: {
-                "X-CSRF-Token": components["parameters"]["CsrfToken"];
-                /**
-                 * @description Unique within the current user session. Reuse is allowed only for an
-                 *     identical normalized request body.
-                 */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
+            header?: never;
             path: {
                 assistantMessageId: components["parameters"]["AssistantMessageId"];
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetryGenerationRequest"];
+            };
+        };
         responses: {
             /** @description SSE stream with kind=retry */
             200: {
@@ -1437,9 +1353,7 @@ export interface operations {
     logoutAdmin: {
         parameters: {
             query?: never;
-            header: {
-                "X-CSRF-Token": components["parameters"]["CsrfToken"];
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -1480,9 +1394,7 @@ export interface operations {
     saveAdminLlmConfig: {
         parameters: {
             query?: never;
-            header: {
-                "X-CSRF-Token": components["parameters"]["CsrfToken"];
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -1509,9 +1421,7 @@ export interface operations {
     testAdminLlmConfig: {
         parameters: {
             query?: never;
-            header: {
-                "X-CSRF-Token": components["parameters"]["CsrfToken"];
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -1544,9 +1454,9 @@ export interface operations {
                 createdTo?: string;
                 activityFrom?: string;
                 activityTo?: string;
-                /** @description Opaque signed cursor returned by the previous page */
-                cursor?: components["parameters"]["Cursor"];
-                limit?: number;
+                /** @description One-based page number */
+                page?: components["parameters"]["Page"];
+                pageSize?: components["parameters"]["PageSize"];
             };
             header?: never;
             path?: never;
@@ -1595,9 +1505,9 @@ export interface operations {
     listAdminTopicMessages: {
         parameters: {
             query?: {
-                /** @description Opaque signed cursor returned by the previous page */
-                cursor?: components["parameters"]["Cursor"];
-                limit?: number;
+                /** @description One-based page number */
+                page?: components["parameters"]["Page"];
+                pageSize?: number;
             };
             header?: never;
             path: {
@@ -1625,9 +1535,9 @@ export interface operations {
     listAdminTopicLlmCalls: {
         parameters: {
             query?: {
-                /** @description Opaque signed cursor returned by the previous page */
-                cursor?: components["parameters"]["Cursor"];
-                limit?: number;
+                /** @description One-based page number */
+                page?: components["parameters"]["Page"];
+                pageSize?: number;
             };
             header?: never;
             path: {

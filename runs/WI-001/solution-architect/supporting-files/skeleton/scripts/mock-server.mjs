@@ -53,7 +53,7 @@ const generation = {
   assistantMessageId: ids.assistantMessage,
   kind: "chat",
   status: "completed",
-  lastEventSequence: 4,
+  stopRequested: false,
   startedAt: now,
   finishedAt: "2026-07-16T12:00:04Z",
   createdAt: now,
@@ -69,9 +69,9 @@ function json(response, status, body, headers = {}) {
   response.end(JSON.stringify(body));
 }
 
-function error(response, status, code, message) {
+function error(response, status, code, message, extra = {}) {
   json(response, status, {
-    error: { code, message, requestId: "mock_req_01" }
+    error: { code, message, requestId: "mock_req_01", ...extra }
   });
 }
 
@@ -86,10 +86,7 @@ async function readJson(request) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-function writeEvent(response, event, data, sequence) {
-  if (sequence !== undefined) {
-    response.write(`id: ${sequence}\n`);
-  }
+function writeEvent(response, event, data) {
   response.write(`event: ${event}\n`);
   response.write(`data: ${JSON.stringify(data)}\n\n`);
 }
@@ -105,16 +102,10 @@ function streamGeneration(request, response, kind = "chat") {
         generationId: ids.generation,
         sequence: 1,
         kind,
-        conversation: { ...conversation, title: "帮我写一个 Python 脚本", titleStatus: "temporary" },
-        userMessage,
-        assistantMessage: {
-          ...assistantMessage,
-          status: "generating",
-          content: "",
-          canRetry: false,
-          updatedAt: now,
-          ...(kind === "retry" ? { retryOfMessageId: ids.assistantMessage } : {})
-        },
+        conversationId: ids.conversation,
+        userMessageId: ids.userMessage,
+        assistantMessageId: ids.assistantMessage,
+        temporaryTitle: "帮我写一个 Python 脚本",
         occurredAt: now
       }
     },
@@ -139,6 +130,7 @@ function streamGeneration(request, response, kind = "chat") {
       data: {
         generationId: ids.generation,
         sequence: 3,
+        generation: { ...generation, status: "failed" },
         assistantMessage: {
           ...assistantMessage,
           status: "failed",
@@ -160,6 +152,7 @@ function streamGeneration(request, response, kind = "chat") {
       data: {
         generationId: ids.generation,
         sequence: 3,
+        generation: { ...generation, status: "stopped", stopRequested: true },
         assistantMessage: {
           ...assistantMessage,
           status: "stopped",
@@ -190,27 +183,13 @@ function streamGeneration(request, response, kind = "chat") {
         data: {
           generationId: ids.generation,
           sequence: 4,
+          generation,
           assistantMessage,
-          conversation: {
-            ...conversation,
-            title: "帮我写一个 Python 脚本",
-            titleStatus: "temporary"
-          },
-          titleGeneration: "queued",
+          titleWillBeAttempted: true,
           occurredAt: "2026-07-16T12:00:04Z"
         }
       }
     );
-  }
-
-  const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
-  const after = Number(url.searchParams.get("after") ?? "0");
-  const remaining = events.filter((event) => event.sequence > after);
-
-  if (remaining.length === 0) {
-    response.writeHead(204);
-    response.end();
-    return;
   }
 
   response.writeHead(200, {
@@ -222,14 +201,14 @@ function streamGeneration(request, response, kind = "chat") {
 
   let index = 0;
   const timer = setInterval(() => {
-    const event = remaining[index];
+    const event = events[index];
     if (!event) {
       clearInterval(timer);
       response.end();
       return;
     }
 
-    writeEvent(response, event.type, event.data, event.sequence);
+    writeEvent(response, event.type, event.data);
     if (scenario === "chat-slow" && event.type === "generation.delta") {
       writeEvent(response, "heartbeat", {
         generationId: ids.generation,
@@ -264,7 +243,6 @@ const server = createServer(async (request, response) => {
         path.endsWith("register") ? 201 : 200,
         {
           user: { id: ids.user, phone: body.phone ?? "13800138000", createdAt: now },
-          csrfToken: "mock-user-csrf-token-at-least-32-characters",
           expiresAt: "2026-07-23T12:00:00Z"
         },
         { "set-cookie": "ld_user_session=mock; HttpOnly; SameSite=Lax; Path=/api/v1/user" }
@@ -275,7 +253,6 @@ const server = createServer(async (request, response) => {
     if (method === "GET" && path === "/api/v1/user/auth/session") {
       json(response, 200, {
         user: { id: ids.user, phone: "13800138000", createdAt: now },
-        csrfToken: "mock-user-csrf-token-at-least-32-characters",
         expiresAt: "2026-07-23T12:00:00Z"
       });
       return;
@@ -290,7 +267,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (method === "GET" && path === "/api/v1/user/conversations") {
-      json(response, 200, { items: [conversation], nextCursor: null, hasMore: false });
+      json(response, 200, { items: [conversation], page: 1, pageSize: 20, total: 1 });
       return;
     }
 
@@ -302,14 +279,21 @@ const server = createServer(async (request, response) => {
     if (method === "GET" && path === `/api/v1/user/conversations/${ids.conversation}/messages`) {
       json(response, 200, {
         items: [userMessage, assistantMessage],
-        beforeCursor: null,
-        hasMoreBefore: false
+        page: 1,
+        pageSize: 30,
+        total: 2
       });
       return;
     }
 
     if (method === "POST" && path === "/api/v1/user/generations") {
       await readJson(request);
+      if (request.headers["x-mock-scenario"] === "duplicate-message") {
+        error(response, 409, "DUPLICATE_MESSAGE", "该消息已经提交，请读取已有生成状态", {
+          generationId: ids.generation
+        });
+        return;
+      }
       streamGeneration(request, response, "chat");
       return;
     }
@@ -319,19 +303,14 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    if (method === "GET" && path === `/api/v1/user/generations/${ids.generation}/stream`) {
-      streamGeneration(request, response, "chat");
-      return;
-    }
-
     if (method === "POST" && path === `/api/v1/user/generations/${ids.generation}/stop`) {
       json(response, 202, {
         generation: {
           ...generation,
           status: "streaming",
-          lastEventSequence: 2,
           finishedAt: undefined,
-          cancelRequestedAt: new Date().toISOString()
+          stopRequested: true,
+          updatedAt: new Date().toISOString()
         },
         assistantMessage: {
           ...assistantMessage,
@@ -359,7 +338,6 @@ const server = createServer(async (request, response) => {
         200,
         {
           admin: { id: ids.admin, username: "admin" },
-          csrfToken: "mock-admin-csrf-token-at-least-32-characters",
           expiresAt: "2026-07-17T00:00:00Z"
         },
         { "set-cookie": "ld_admin_session=mock; HttpOnly; SameSite=Lax; Path=/api/v1/admin" }
@@ -370,7 +348,6 @@ const server = createServer(async (request, response) => {
     if (method === "GET" && path === "/api/v1/admin/auth/session") {
       json(response, 200, {
         admin: { id: ids.admin, username: "admin" },
-        csrfToken: "mock-admin-csrf-token-at-least-32-characters",
         expiresAt: "2026-07-17T00:00:00Z"
       });
       return;
@@ -427,8 +404,9 @@ const server = createServer(async (request, response) => {
           createdAt: now,
           lastActivityAt: conversation.lastActivityAt
         }],
-        nextCursor: null,
-        hasMore: false
+        page: 1,
+        pageSize: 20,
+        total: 1
       });
       return;
     }
@@ -451,8 +429,9 @@ const server = createServer(async (request, response) => {
     if (method === "GET" && path === `/api/v1/admin/topics/${ids.conversation}/messages`) {
       json(response, 200, {
         items: [userMessage, assistantMessage],
-        nextCursor: null,
-        hasMore: false
+        page: 1,
+        pageSize: 50,
+        total: 2
       });
       return;
     }
@@ -463,7 +442,7 @@ const server = createServer(async (request, response) => {
           id: ids.llmCall,
           step: 1,
           callType: "chat",
-          relatedMessageId: ids.userMessage,
+          relatedMessageId: ids.assistantMessage,
           provider: "openai",
           model: "example-model",
           prompt: [{ role: "user", content: userMessage.content }],
@@ -474,8 +453,9 @@ const server = createServer(async (request, response) => {
           startedAt: now,
           finishedAt: "2026-07-16T12:00:04Z"
         }],
-        nextCursor: null,
-        hasMore: false
+        page: 1,
+        pageSize: 50,
+        total: 1
       });
       return;
     }
