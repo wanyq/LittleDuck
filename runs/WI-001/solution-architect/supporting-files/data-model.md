@@ -1,203 +1,166 @@
-# 数据模型与一致性设计
+# LittleDuck MVP 数据模型
 
-## 1. 设计原则
+## 1. 原则
 
-- PostgreSQL 是业务状态唯一权威来源。
-- 所有时间以 UTC 存储、ISO 8601 传输；Asia/Shanghai 只用于列表分组和管理端日期筛选边界。
-- ID 使用 UUID。
-- 手机号规范化为中国大陆 11 位数字，不保存 `+86` 前缀。
-- 会话、消息和 LLM 调用长期保留；流事件是传输恢复材料，不替代最终消息和调用记录。
-- 不用软删除模拟 PRD 未提供的删除功能。
+- PostgreSQL 是用户、会话、消息、生成、配置和 LLM 调用的唯一权威存储；
+- 用户端所有资源查询必须同时带当前 `user_id`；
+- 产品状态只保存一次，不增加事件溯源、通用 Job 或 checkpoint 表；
+- LLM 调用记录保存实际 Prompt、实际完整/部分返回和供应商错误；
+- 时间以 UTC 保存，H5 分组和管理端日期筛选按 Asia/Shanghai 转换；
+- P0 不删除数据，业务表长期保留。
 
-## 2. 实体关系
+## 2. 关系
 
-```mermaid
-erDiagram
-    USERS ||--o{ USER_SESSIONS : owns
-    USERS ||--o{ CONVERSATIONS : owns
-    CONVERSATIONS ||--o{ MESSAGES : contains
-    CONVERSATIONS ||--o{ GENERATIONS : runs
-    GENERATIONS ||--o{ GENERATION_EVENTS : emits
-    GENERATIONS ||--o{ LLM_CALLS : creates
-    CONVERSATIONS ||--o{ LLM_CALLS : records
-    ADMINS ||--o{ ADMIN_SESSIONS : owns
-    LLM_CONFIGS ||--o{ LLM_CALLS : snapshots
-    JOBS }o--|| CONVERSATIONS : targets
+```text
+users 1--N user_sessions
+users 1--N conversations
+conversations 1--N messages
+conversations 1--N generations
+conversations 1--N llm_calls
+generations 1--1 user message
+generations 1--1 assistant message
+generations 1--1 chat/retry llm_call
+admins 1--N admin_sessions
+llm_configs exactly one effective row
 ```
 
 ## 3. 核心表
 
 ### `users`
 
-| 字段 | 约束 |
-| --- | --- |
-| `id` | UUID PK |
-| `phone` | 11 位数字，唯一 |
-| `created_at` | UTC |
-
-不保存验证码。`000000` 是应用规则，不是用户数据。
+`id`、唯一 `phone`、`created_at`、`updated_at`。验证码固定为产品规则，不保存验证码。
 
 ### `user_sessions`
 
-| 字段 | 约束 |
-| --- | --- |
-| `id` | UUID PK |
-| `user_id` | FK users |
-| `token_hash` | SHA-256，唯一 |
-| `csrf_token_hash` | SHA-256 |
-| `expires_at` | 登录后 7 天 |
-| `revoked_at` | nullable |
-| `created_at` / `last_seen_at` | UTC |
-
-同一用户可有多个有效会话。退出只撤销当前 Session。
+`id`、`user_id`、唯一 `token_hash`、`expires_at`、`revoked_at`、`created_at`。浏览器只持有
+原始随机 Token；数据库泄漏不直接暴露有效 Session。
 
 ### `admins` / `admin_sessions`
 
-- 初始化唯一管理员 `admin`。
-- 密码使用 Argon2id 哈希，绝不保存明文 `admin`。
-- 管理员 Session 与用户 Session 完全分表。
-- 管理员 Session 建议 12 小时绝对有效期；该值通过非敏感配置调整。
+与用户身份域分表。`admins.password_hash` 保存强哈希；Session 结构与用户相同，但 Cookie
+名称和 Path 不同。
 
 ### `conversations`
 
 | 字段 | 说明 |
 | --- | --- |
-| `user_id` | 所有用户查询必须带此条件 |
-| `title` | 最多 20 个 Unicode 字符 |
+| `id`, `user_id` | 会话及所有者 |
+| `title` | 最多 20 字符 |
 | `title_status` | `temporary` / `final` |
-| `first_user_message_id` | 固定标题输入 |
-| `first_successful_assistant_message_id` | 首个成功助手回复 |
-| `last_activity_at` | 用户、完成、失败或停止助手消息都会更新 |
-| `created_at` / `updated_at` | UTC |
+| `last_activity_at` | 成功、失败、停止均更新，用于排序与时间分组 |
+| `created_at`, `updated_at` | UTC 时间 |
 
-“话题”不另建表；管理端话题就是会话投影。
+用户会话列表以 `user_id, last_activity_at DESC` 查询；标题搜索仍带 `user_id`。
 
 ### `messages`
 
 | 字段 | 说明 |
 | --- | --- |
+| `id`, `conversation_id` | 消息归属 |
 | `role` | `user` / `assistant` |
-| `status` | 用户为 `persisted`；助手为 `generating/completed/failed/stopped` |
-| `content` | 用户文本、助手完整或部分文本 |
-| `client_message_id` | 用户提供，用户范围唯一 |
+| `status` | `persisted` / `generating` / `completed` / `failed` / `stopped` |
+| `content` | 用户正文或助手完整/部分正文 |
 | `reply_to_message_id` | 助手对应的用户消息 |
-| `retry_of_message_id` | 重试助手指向原失败/停止助手 |
-| `generation_id` | 关联生成 |
-| `created_at` / `updated_at` | UTC |
+| `retry_of_message_id` | 新助手消息所重试的旧助手消息，可空 |
+| `created_at`, `updated_at` | 顺序和显示时间 |
 
-失败和停止助手消息永久保留。重试永远新增助手消息。
+失败或停止助手消息不覆盖；重试新增一条助手消息。上下文只取 persisted 用户消息与
+completed 助手消息的完整轮次。
 
 ### `generations`
 
 | 字段 | 说明 |
 | --- | --- |
+| `id`, `user_id`, `conversation_id` | 生成及权限范围 |
+| `user_message_id`, `assistant_message_id` | 输入与输出 |
+| `client_request_id` | 浏览器稳定 UUID，防止弱网重复提交 |
 | `kind` | `chat` / `retry` |
-| `status` | `queued/streaming/completed/failed/stopped` |
-| `conversation_id` | 所属会话 |
-| `user_message_id` | 当前或复用的用户消息 |
-| `assistant_message_id` | 本次新助手消息 |
-| `origin_user_session_id` | 用于退出时只停止当前设备生成 |
-| `idempotency_key_hash` | 不保存明文键 |
-| `request_fingerprint` | 规范化请求体 SHA-256 |
-| `last_event_sequence` | SSE 持久事件序号 |
-| `cancel_requested_at` | stop 或退出请求 |
-| `started_at` / `finished_at` | UTC |
+| `status` | `streaming` / `completed` / `failed` / `stopped` |
+| `stop_requested` | 停止端点设置，生成任务检查 |
+| `error_code` | 面向应用的失败码 |
+| `finished_at` | 终态时间 |
 
-部分唯一索引保证同一会话最多一个活动生成。
-
-### `generation_events`
-
-- 主键 `(generation_id, sequence)`；
-- 保存 `generation.started/delta/completed/failed/stopped` 的最小可重放载荷；
-- delta 由服务端按时间或大小合并后写入，避免每个 token 一次事务；
-- 事件至少保留 24 小时；过期后客户端改用生成状态与消息详情；
-- `heartbeat` 不持久化，也没有事件序号。
+唯一约束 `(user_id, client_request_id)`。重复 UUID 返回已有 `generationId`，不保存第二条
+用户消息。事务先锁定当前用户行以串行化同一用户的短创建事务；数据库部分唯一索引再保证
+每个会话最多一个 streaming generation。
 
 ### `llm_configs`
 
-MVP 只有 `id = 1`：
-
-- `provider = openai`；
-- `model` 明文；
-- `api_key_ciphertext`、`api_key_iv`、`api_key_tag`；
-- `updated_by_admin_id`、`updated_at`。
-
-API Key 使用 `CONFIG_ENCRYPTION_KEY` 派生的 AES-256-GCM 密钥加密。管理端读取时由服务端解密并只返回给已认证管理员。
+单行有效配置：`provider`、`model`、`api_key_ciphertext`、`api_key_nonce`。API Key 使用
+AES-256-GCM；加密主密钥不入库。读取接口只对管理员解密。
 
 ### `llm_calls`
 
 | 字段 | 说明 |
 | --- | --- |
-| `call_type` | `chat/title/retry` |
-| `provider` / `model` | 调用时快照 |
-| `prompt_json` | 实际角色和顺序；不补不存在内容 |
-| `response_text` | 实际完整或部分返回 |
-| `status` | `in_progress/succeeded/failed/stopped` |
-| `provider_response_id` | nullable |
-| `provider_error_code/message` | 管理员可见，绝不含 API Key |
-| `started_at` / `finished_at` | UTC |
+| `conversation_id`, `generation_id` | 话题和可选生成关联 |
+| `related_message_id` | 关联助手消息；标题调用可关联触发标题的首条消息 |
+| `call_type` | `chat` / `title` / `retry` |
+| `provider`, `model` | 实际生效配置 |
+| `prompt` | JSONB，实际发送的角色、顺序和正文 |
+| `response_text` | 实际完整或部分聚合返回，可为空 |
+| `status` | `in_progress` / `succeeded` / `failed` / `stopped` |
+| `provider_response_id` | 供应商返回 ID，可空 |
+| `provider_error` | 管理员可见错误结构，可空 |
+| `started_at`, `finished_at` | 调用时间 |
 
-配置测试不写 `llm_calls`，因为它不属于用户话题。
+测试连接不写入此表。调用开始前先保存 Prompt；流式过程中分批更新 `response_text`；终态
+与助手消息、generation 同一事务提交。
 
-### `jobs`
+## 4. 事务边界
 
-用于标题生成和恢复任务：
+### 4.1 创建聊天
 
-- `job_type=title_generation`；
-- `status=pending/running/succeeded/failed`；
-- `dedupe_key` 唯一；
-- `payload_json` 只保存对象 ID，不复制消息全文；
-- `available_at`、`attempts`、`locked_at`。
+单事务：
 
-## 4. 关键事务
+1. 校验 `conversation_id + user_id` 或创建会话；
+2. 检查 `(user_id, client_request_id)`；
+3. 检查会话无 streaming 生成；
+4. 创建用户消息、助手占位、generation；
+5. 组装上下文并创建 in_progress `llm_calls`；
+6. 提交后才启动模型流。
 
-### 新会话生成事务
+事务失败时不产生半条历史。模型调用失败发生在事务之后，因此保留已成功发送的用户消息
+和失败助手占位，符合 PRD。
 
-`conversation + user message + assistant placeholder + generation + llm_call`
+### 4.2 增量与终态
 
-任一失败则整体回滚。因此发送失败时不创建历史会话。
+delta 按短时间窗口合并，更新助手 `content` 和调用 `response_text`，不逐 token 建事件行。
+终态事务同时更新：
 
-### 终态事务
+- generation 状态、错误和结束时间；
+- assistant message 状态和最终/部分内容；
+- llm_call 状态、返回、错误和结束时间；
+- conversation `last_activity_at`。
 
-`generation terminal + assistant terminal + llm_call terminal + final event + conversation.last_activity_at`
+### 4.3 停止与重启
 
-使用条件更新 `WHERE generation.status IN ('queued','streaming')` 保证 completed/failed/stopped 只能有一个结果。
+停止端点只设置 `stop_requested`，幂等返回当前 generation。任务观察后写 stopped 终态。
+服务启动时扫描遗留 streaming 行，写 failed/`GENERATION_INTERRUPTED`，保留部分内容。
 
-### 标题任务事务
+### 4.4 标题
 
-首个助手成功后：
+聊天完成事务不等待标题。进程内任务读取首条用户消息和首个成功助手消息，新增 title
+调用；成功后把 `title/title_status` 更新为 final。失败不修改临时标题，也不需要 Job 表。
 
-1. 若 `first_successful_assistant_message_id` 为空则设置；
-2. 若标题仍为 temporary，插入带去重键的 title job；
-3. 聊天生成终态提交，不等待 job 执行。
+## 5. 分页
 
-## 5. 权限查询模板
+所有列表使用 `page`、`pageSize` 和 `total`：
 
-用户资源禁止以下模式：
+- 会话和话题默认 20 条；
+- 用户进入会话默认取最后一页的最近 30 条；
+- 管理端消息和调用默认 50 条；
+- 服务端限制 `pageSize <= 100`。
 
-```sql
-SELECT * FROM conversations WHERE id = $1;
--- 然后在应用层比较 user_id
-```
+页码分页在当前无容量门槛的单机 MVP 中最易实现、测试和说明。查询始终先施加用户/管理员
+权限和筛选，再计算 total 与 offset。数据规模或并发写入导致实际问题时，再以合同修订引入
+keyset cursor。
 
-必须使用：
+## 6. 明确移除的数据结构
 
-```sql
-SELECT *
-FROM conversations
-WHERE id = $1 AND user_id = $2;
-```
+- `generation_events`：不提供 SSE 逐事件重放；
+- `jobs`：标题失败允许保留临时标题；
+- idempotency request fingerprint 表：由稳定 UUID 与唯一约束替代；
+- LangGraph checkpoint/store：当前没有 Agent 工作流。
 
-消息、生成和恢复流均通过 conversation owner 连接条件查询。越权和不存在统一返回 404，避免枚举。
-
-管理员查询使用独立认证中间件，可以读取所有会话，但所有端点只读。
-
-## 6. 分页
-
-- 游标使用 base64url 编码的版本化 JSON，并由服务端 HMAC 签名。
-- 会话游标包含 `lastActivityAt` 与 `id`。
-- 消息游标包含 `createdAt` 与 `id`；`before` 返回更早数据，响应保持正序便于前端插入顶部。
-- 管理话题使用 cursor + limit，默认 20。
-- 管理日期筛选把 Asia/Shanghai 所选日期转换为 UTC 半开区间。
-
-详细 PostgreSQL 约束见 `schema.sql`。
+完整参考 DDL 见 `schema.sql`；可执行迁移见工程骨架 `apps/api/migrations/`。

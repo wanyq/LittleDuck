@@ -3,7 +3,7 @@ info:
   title: LittleDuck MVP API
   version: 1.0.0
   description: |
-    WI-001 revision 2 initial API contract baseline.
+    WI-001 revision 4 review-candidate API contract.
     All timestamps are UTC ISO 8601. User-facing grouping and admin date
     filters use Asia/Shanghai semantics as documented on each operation.
     Semantic changes require a Coordinator-approved contract revision Work Item.
@@ -18,7 +18,7 @@ tags:
   - name: User Conversations
     description: Current-user conversation and message queries
   - name: User Generations
-    description: Chat generation, SSE recovery, stop and retry
+    description: Chat generation, authoritative terminal state, stop and retry
   - name: Admin Auth
     description: Independent administrator identity domain
   - name: Admin LLM Config
@@ -167,8 +167,6 @@ paths:
         request. Other sessions for the same user are not revoked.
       security:
         - UserCookie: []
-      parameters:
-        - $ref: "#/components/parameters/CsrfToken"
       responses:
         "204":
           description: Session revoked and cookie cleared
@@ -200,14 +198,8 @@ paths:
           schema:
             type: string
             maxLength: 100
-        - $ref: "#/components/parameters/Cursor"
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 50
-            default: 20
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
       responses:
         "200":
           description: Conversation page
@@ -247,18 +239,14 @@ paths:
       operationId: listUserConversationMessages
       summary: Load messages, starting with the latest 30
       description: |
-        Without before, returns the latest messages in chronological order.
-        With before, returns an older page in chronological order for prepending.
+        Returns the requested page in chronological order. The default pageSize
+        is 30. The client loads the last page first, then requests earlier pages.
       security:
         - UserCookie: []
       parameters:
         - $ref: "#/components/parameters/ConversationId"
-        - name: before
-          in: query
-          schema:
-            type: string
-          description: Opaque signed cursor for an older page
-        - name: limit
+        - $ref: "#/components/parameters/Page"
+        - name: pageSize
           in: query
           schema:
             type: integer
@@ -288,14 +276,11 @@ paths:
         conversationId is omitted for a new unsaved conversation. The first
         successful persistence transaction creates the conversation, temporary
         title, user message, assistant placeholder, generation and LLM call.
-        Repeating the same request with the same Idempotency-Key replays or
-        continues the original generation. A different request body with the
-        same key returns 409 IDEMPOTENCY_KEY_REUSED.
+        clientMessageId is generated once by the browser. Repeating it for the
+        same user returns 409 DUPLICATE_MESSAGE with the existing generationId,
+        so the client can read authoritative state without creating another message.
       security:
         - UserCookie: []
-      parameters:
-        - $ref: "#/components/parameters/CsrfToken"
-        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -323,11 +308,9 @@ paths:
                 type: string
                 format: binary
               example: |
-                id: 1
                 event: generation.started
                 data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":1,"kind":"chat","occurredAt":"2026-07-16T12:00:00Z"}
 
-                id: 2
                 event: generation.delta
                 data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":2,"assistantMessageId":"4cbe9c70-74ff-4d5c-a70f-131722b21589","delta":"当然可以。","accumulatedLength":6,"occurredAt":"2026-07-16T12:00:01Z"}
 
@@ -345,7 +328,7 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
         "409":
-          description: Active generation or idempotency conflict
+          description: Active generation or duplicate clientMessageId
           content:
             application/json:
               schema:
@@ -380,67 +363,6 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /api/v1/user/generations/{generationId}/stream:
-    get:
-      tags: [User Generations]
-      operationId: resumeUserGenerationStream
-      summary: Replay and, if active, continue a generation stream
-      description: |
-        Replays events with sequence greater than after or Last-Event-ID.
-        If neither is present, replays from sequence 1. When after equals the
-        terminal sequence, returns 204. Stream events are retained at least
-        24 hours; the final message and generation remain available afterward.
-      security:
-        - UserCookie: []
-      parameters:
-        - $ref: "#/components/parameters/GenerationId"
-        - name: after
-          in: query
-          schema:
-            type: integer
-            format: int64
-            minimum: 0
-        - name: Last-Event-ID
-          in: header
-          schema:
-            type: integer
-            format: int64
-            minimum: 0
-      responses:
-        "200":
-          description: Replayed and/or live SSE
-          content:
-            text/event-stream:
-              schema:
-                type: string
-                format: binary
-          x-sse-events:
-            - $ref: "#/components/schemas/GenerationStartedEvent"
-            - $ref: "#/components/schemas/GenerationDeltaEvent"
-            - $ref: "#/components/schemas/GenerationCompletedEvent"
-            - $ref: "#/components/schemas/GenerationFailedEvent"
-            - $ref: "#/components/schemas/GenerationStoppedEvent"
-            - $ref: "#/components/schemas/HeartbeatEvent"
-        "204":
-          description: Client already has the terminal event
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "410":
-          description: Replay events expired; refresh messages and generation state
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
-              example:
-                error:
-                  code: STREAM_REPLAY_EXPIRED
-                  message: 流式记录已过期，请刷新会话查看最终状态
-                  requestId: req_01
-
   /api/v1/user/generations/{generationId}/stop:
     post:
       tags: [User Generations]
@@ -450,7 +372,6 @@ paths:
         - UserCookie: []
       parameters:
         - $ref: "#/components/parameters/GenerationId"
-        - $ref: "#/components/parameters/CsrfToken"
       responses:
         "200":
           description: Generation was already terminal; current state returned
@@ -483,8 +404,12 @@ paths:
         - UserCookie: []
       parameters:
         - $ref: "#/components/parameters/AssistantMessageId"
-        - $ref: "#/components/parameters/CsrfToken"
-        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RetryGenerationRequest"
       responses:
         "200":
           description: SSE stream with kind=retry
@@ -587,8 +512,6 @@ paths:
       summary: Revoke the current admin session
       security:
         - AdminCookie: []
-      parameters:
-        - $ref: "#/components/parameters/CsrfToken"
       responses:
         "204":
           description: Session revoked and cookie cleared
@@ -623,8 +546,6 @@ paths:
         values may be saved and will affect subsequent chat, title and retry calls.
       security:
         - AdminCookie: []
-      parameters:
-        - $ref: "#/components/parameters/CsrfToken"
       requestBody:
         required: true
         content:
@@ -655,8 +576,6 @@ paths:
         data, does not save the config, and does not create a topic LLM call record.
       security:
         - AdminCookie: []
-      parameters:
-        - $ref: "#/components/parameters/CsrfToken"
       requestBody:
         required: true
         content:
@@ -734,14 +653,8 @@ paths:
           schema:
             type: string
             format: date
-        - $ref: "#/components/parameters/Cursor"
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
       responses:
         "200":
           description: Topic page
@@ -779,13 +692,13 @@ paths:
     get:
       tags: [Admin Topics]
       operationId: listAdminTopicMessages
-      summary: List all topic messages in chronological cursor pages
+      summary: List all topic messages in chronological pages
       security:
         - AdminCookie: []
       parameters:
         - $ref: "#/components/parameters/TopicId"
-        - $ref: "#/components/parameters/Cursor"
-        - name: limit
+        - $ref: "#/components/parameters/Page"
+        - name: pageSize
           in: query
           schema:
             type: integer
@@ -819,8 +732,8 @@ paths:
         - AdminCookie: []
       parameters:
         - $ref: "#/components/parameters/TopicId"
-        - $ref: "#/components/parameters/Cursor"
-        - name: limit
+        - $ref: "#/components/parameters/Page"
+        - name: pageSize
           in: query
           schema:
             type: integer
@@ -855,31 +768,22 @@ components:
       description: HttpOnly admin session cookie scoped to /api/v1/admin
 
   parameters:
-    CsrfToken:
-      name: X-CSRF-Token
-      in: header
-      required: true
+    Page:
+      name: page
+      in: query
+      description: One-based page number
       schema:
-        type: string
-        minLength: 32
-        maxLength: 512
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: true
-      description: |
-        Unique within the current user session. Reuse is allowed only for an
-        identical normalized request body.
-      schema:
-        type: string
-        minLength: 16
-        maxLength: 128
-    Cursor:
-      name: cursor
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
       in: query
       schema:
-        type: string
-      description: Opaque signed cursor returned by the previous page
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
     ConversationId:
       name: conversationId
       in: path
@@ -912,7 +816,7 @@ components:
 
   responses:
     BadRequest:
-      description: Invalid input, verification code, cursor or date range
+      description: Invalid input, verification code, page or date range
       content:
         application/json:
           schema:
@@ -945,7 +849,7 @@ components:
               message: 登录状态已失效，请重新登录
               requestId: req_01
     Forbidden:
-      description: CSRF or origin validation failed
+      description: Same-origin or authorization validation failed
       content:
         application/json:
           schema:
@@ -998,8 +902,7 @@ components:
           enum: [ok, degraded]
         database:
           type: string
-          enum: [ok, unavailable, not_checked]
-          description: not_checked is permitted only for the WI-001 skeleton
+          enum: [ok, unavailable]
         time:
           type: string
           format: date-time
@@ -1034,13 +937,10 @@ components:
     UserSessionResponse:
       type: object
       additionalProperties: false
-      required: [user, csrfToken, expiresAt]
+      required: [user, expiresAt]
       properties:
         user:
           $ref: "#/components/schemas/User"
-        csrfToken:
-          type: string
-          description: Store in memory or session storage; send on mutations
         expiresAt:
           type: string
           format: date-time
@@ -1074,12 +974,10 @@ components:
     AdminSessionResponse:
       type: object
       additionalProperties: false
-      required: [admin, csrfToken, expiresAt]
+      required: [admin, expiresAt]
       properties:
         admin:
           $ref: "#/components/schemas/Admin"
-        csrfToken:
-          type: string
         expiresAt:
           type: string
           format: date-time
@@ -1112,17 +1010,21 @@ components:
     ConversationPage:
       type: object
       additionalProperties: false
-      required: [items, hasMore]
+      required: [items, page, pageSize, total]
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/ConversationSummary"
-        nextCursor:
-          type: string
-          nullable: true
-        hasMore:
-          type: boolean
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
 
     ConversationDetailResponse:
       type: object
@@ -1180,17 +1082,21 @@ components:
     MessagePage:
       type: object
       additionalProperties: false
-      required: [items, hasMoreBefore]
+      required: [items, page, pageSize, total]
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/Message"
-        beforeCursor:
-          type: string
-          nullable: true
-        hasMoreBefore:
-          type: boolean
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
 
     CreateGenerationRequest:
       type: object
@@ -1210,6 +1116,16 @@ components:
           minLength: 1
           maxLength: 4000
 
+    RetryGenerationRequest:
+      type: object
+      additionalProperties: false
+      required: [clientRetryId]
+      properties:
+        clientRetryId:
+          type: string
+          format: uuid
+          description: Stable browser-generated ID used to prevent duplicate retries
+
     Generation:
       type: object
       additionalProperties: false
@@ -1220,7 +1136,6 @@ components:
         - assistantMessageId
         - kind
         - status
-        - lastEventSequence
         - createdAt
         - updatedAt
       properties:
@@ -1241,14 +1156,9 @@ components:
           enum: [chat, retry]
         status:
           type: string
-          enum: [queued, streaming, completed, failed, stopped]
-        lastEventSequence:
-          type: integer
-          format: int64
-          minimum: 0
-        cancelRequestedAt:
-          type: string
-          format: date-time
+          enum: [streaming, completed, failed, stopped]
+        stopRequested:
+          type: boolean
         startedAt:
           type: string
           format: date-time
@@ -1279,9 +1189,10 @@ components:
         - generationId
         - sequence
         - kind
-        - conversation
-        - userMessage
-        - assistantMessage
+        - conversationId
+        - userMessageId
+        - assistantMessageId
+        - temporaryTitle
         - occurredAt
       properties:
         generationId:
@@ -1294,12 +1205,18 @@ components:
         kind:
           type: string
           enum: [chat, retry]
-        conversation:
-          $ref: "#/components/schemas/ConversationSummary"
-        userMessage:
-          $ref: "#/components/schemas/Message"
-        assistantMessage:
-          $ref: "#/components/schemas/Message"
+        conversationId:
+          type: string
+          format: uuid
+        userMessageId:
+          type: string
+          format: uuid
+        assistantMessageId:
+          type: string
+          format: uuid
+        temporaryTitle:
+          type: string
+          maxLength: 20
         occurredAt:
           type: string
           format: date-time
@@ -1341,9 +1258,9 @@ components:
       required:
         - generationId
         - sequence
+        - generation
         - assistantMessage
-        - conversation
-        - titleGeneration
+        - titleWillBeAttempted
         - occurredAt
       properties:
         generationId:
@@ -1353,13 +1270,13 @@ components:
           type: integer
           format: int64
           minimum: 2
+        generation:
+          $ref: "#/components/schemas/Generation"
         assistantMessage:
           $ref: "#/components/schemas/Message"
-        conversation:
-          $ref: "#/components/schemas/ConversationSummary"
-        titleGeneration:
-          type: string
-          enum: [queued, not_needed]
+        titleWillBeAttempted:
+          type: boolean
+          description: True when the service will attempt the non-blocking first-title call
         occurredAt:
           type: string
           format: date-time
@@ -1368,7 +1285,7 @@ components:
       type: object
       additionalProperties: false
       required:
-        [generationId, sequence, assistantMessage, error, occurredAt]
+        [generationId, sequence, generation, assistantMessage, error, occurredAt]
       properties:
         generationId:
           type: string
@@ -1377,6 +1294,8 @@ components:
           type: integer
           format: int64
           minimum: 2
+        generation:
+          $ref: "#/components/schemas/Generation"
         assistantMessage:
           $ref: "#/components/schemas/Message"
         error:
@@ -1389,7 +1308,7 @@ components:
       type: object
       additionalProperties: false
       required:
-        [generationId, sequence, assistantMessage, stoppedBy, occurredAt]
+        [generationId, sequence, generation, assistantMessage, stoppedBy, occurredAt]
       properties:
         generationId:
           type: string
@@ -1398,6 +1317,8 @@ components:
           type: integer
           format: int64
           minimum: 2
+        generation:
+          $ref: "#/components/schemas/Generation"
         assistantMessage:
           $ref: "#/components/schemas/Message"
         stoppedBy:
@@ -1553,17 +1474,21 @@ components:
     AdminTopicPage:
       type: object
       additionalProperties: false
-      required: [items, hasMore]
+      required: [items, page, pageSize, total]
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/AdminTopicSummary"
-        nextCursor:
-          type: string
-          nullable: true
-        hasMore:
-          type: boolean
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
 
     AdminTopicResponse:
       type: object
@@ -1576,17 +1501,21 @@ components:
     AdminMessagePage:
       type: object
       additionalProperties: false
-      required: [items, hasMore]
+      required: [items, page, pageSize, total]
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/Message"
-        nextCursor:
-          type: string
-          nullable: true
-        hasMore:
-          type: boolean
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
 
     PromptItem:
       type: object
@@ -1657,17 +1586,21 @@ components:
     LlmCallPage:
       type: object
       additionalProperties: false
-      required: [items, hasMore]
+      required: [items, page, pageSize, total]
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/LlmCall"
-        nextCursor:
-          type: string
-          nullable: true
-        hasMore:
-          type: boolean
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
 
     ErrorDetail:
       type: object
@@ -1696,19 +1629,23 @@ components:
             - FORBIDDEN
             - RESOURCE_NOT_FOUND
             - RATE_LIMITED
-            - CURSOR_INVALID
+            - PAGE_INVALID
             - DATE_RANGE_INVALID
+            - UNSUPPORTED_MEDIA_TYPE
             - GENERATION_IN_PROGRESS
             - RETRY_NOT_ALLOWED
-            - IDEMPOTENCY_KEY_REUSED
+            - DUPLICATE_MESSAGE
             - LLM_NOT_CONFIGURED
             - LLM_UNAVAILABLE
-            - STREAM_REPLAY_EXPIRED
             - INTERNAL_ERROR
         message:
           type: string
         requestId:
           type: string
+        generationId:
+          type: string
+          format: uuid
+          description: Present for DUPLICATE_MESSAGE so the client can read existing state
         details:
           type: array
           items:
