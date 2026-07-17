@@ -1,0 +1,64 @@
+:root {
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #202124;
+  background: #f7f8f9;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+.shell {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: max(24px, env(safe-area-inset-top))
+    20px
+    max(24px, env(safe-area-inset-bottom));
+}
+
+.card {
+  width: min(100%, 430px);
+  padding: 32px 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 28px;
+  background: white;
+  box-shadow: 0 20px 60px rgb(31 41 55 / 8%);
+}
+
+.mark {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #35af84;
+  color: white;
+  font-weight: 800;
+}
+
+.eyebrow {
+  color: #2b9c76;
+  font-weight: 700;
+  margin-top: 24px;
+}
+
+h1 {
+  font-size: clamp(28px, 8vw, 40px);
+  margin: 8px 0 16px;
+}
+
+p,
+li {
+  line-height: 1.7;
+}
+
+ul {
+  padding-left: 20px;
+}
