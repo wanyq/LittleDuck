@@ -3,11 +3,11 @@ run_id: RUN-WI-002-product-ui-designer
 work_item_id: WI-002
 work_item_revision: 6
 agent_id: product-ui-designer
-status: in_review
+status: active
 
 started_at: "2026-07-16T12:28:19Z"
-updated_at: "2026-07-17T03:07:03Z"
+updated_at: "2026-07-17T03:32:44Z"
 
-progress_summary: WI-002 revision 6 完整重做已提交；11 张输入全部映射，H5/PC 高保真视觉板与完整规格一致，可复现渲染和内容/凭据自测全部通过
-next_step: Run 已冻结，等待 Coordinator 审核；仅在收到正式审核反馈后恢复
+progress_summary: 已收到 revision 6 第一次重做审核反馈；除最终补稿使用抽象 Logo 占位外，其余映射、状态、PRD 取舍、文案与自测均通过，现恢复原 Run 修正品牌资产
+next_step: 新增高保真可复用鸭子 SVG，统一替换 H5 与管理端最终补稿 Logo，扩展退化检查并重新渲染自测
 blocker: null
