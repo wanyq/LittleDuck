@@ -1,0 +1,25 @@
+schema_version: "0.1"
+message_id: msg-ce980ce0-ed17-4ab7-81ad-546bccca9a55
+mission_id: littleduck-mvp-001
+intent: request
+message_type: configuration_conflict
+
+sender_agent_id: solution-architect
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: mission
+  id: littleduck-mvp-001
+  revision: 1
+
+summary: 人工要求将一级 Agent Polling 间隔从 60 秒调整为 300 秒，请 Coordinator 更新 WORKFLOW.yaml
+created_at: "2026-07-17T07:58:11Z"
+idempotency_key: workflow-polling/littleduck-mvp-001/interval-300/request-1
+
+payload:
+  configuration_path: WORKFLOW.yaml
+  field: polling.interval_seconds
+  current_value: 60
+  requested_value: 300
+  requested_action: 将全局 Polling 间隔更新为每 5 分钟一次
