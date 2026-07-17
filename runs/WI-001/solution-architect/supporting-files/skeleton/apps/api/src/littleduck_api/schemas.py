@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ApiModel(BaseModel):
@@ -11,6 +11,15 @@ class CreateGenerationRequest(ApiModel):
     conversation_id: uuid.UUID | None = Field(default=None, alias="conversationId")
     client_message_id: uuid.UUID = Field(alias="clientMessageId")
     content: str = Field(min_length=1, max_length=4000)
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def trim_content(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+
+class RetryGenerationRequest(ApiModel):
+    client_retry_id: uuid.UUID = Field(alias="clientRetryId")
 
 
 class ErrorBody(ApiModel):

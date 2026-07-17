@@ -28,10 +28,14 @@ cp .env.example apps/api/.env
 
 ```bash
 pnpm api:migrate
+pnpm api:bootstrap-admin
 ```
 
 正式数据库结构由 `apps/api/migrations/` 管理；相邻的 `../schema.sql` 是便于评审的等价
-参考 DDL。骨架已验证 `upgrade -> downgrade -> upgrade`。
+参考 DDL。骨架已验证 `upgrade -> downgrade -> upgrade`。管理员 bootstrap 是 migration
+之后的独立、可重复部署步骤：首次以 scrypt 强哈希创建 PRD 指定的 `admin/admin`；重复执行
+只返回 already exists，不创建重复行，也不覆盖人工修改后的哈希或输出密码/哈希。后续部署
+Work Item 必须在每次 migration 后调用该命令。
 
 ## 启动真实纵向切片
 
@@ -40,8 +44,10 @@ pnpm start:api
 curl http://127.0.0.1:3000/healthz
 ```
 
-数据库可用时预期 `status=ok`、`database=ok`；数据库不可用时返回 HTTP 503、
-`status=degraded`。测试中的确定性 `DemoGenerationEngine` 不需要任何供应商凭据。
+数据库可用且启动遗留 streaming 已收敛时预期 `status=ok`、`database=ok`。数据库不可用时
+应用仍启动并返回 HTTP 503 `status=degraded`；后台恢复器重试连接，恢复后仅处理启动 cutoff
+前的遗留 generation，完成后 readiness 才变为 200。测试中的确定性
+`DemoGenerationEngine` 不需要任何供应商凭据。
 
 当前实现端点只覆盖最小证明切片：
 
@@ -49,6 +55,8 @@ curl http://127.0.0.1:3000/healthz
 - `POST /api/v1/user/generations`
 - `GET /api/v1/user/generations/{generationId}`
 - `POST /api/v1/user/generations/{generationId}/stop`
+- `POST /api/v1/user/assistant-messages/{assistantMessageId}/retries`
+- `POST /api/v1/user/auth/logout`
 
 完整产品端点以 `../contracts/openapi.yaml` 为准，由下游后端 Work Item 实现。
 
@@ -66,8 +74,10 @@ pnpm build
 ```
 
 `pnpm test` 需要本地 PostgreSQL 测试库，可用 `TEST_DATABASE_URL` 覆盖默认测试 URL。
-纵向测试覆盖事务持久化、SSE `started -> delta -> completed`、权威终态读取、重复请求
-防护、越权 404、实际 Prompt/响应记录和 API Key AES-GCM 往返。
+纵向测试覆盖事务持久化、SSE `started -> delta -> completed`、权威终态、重复/越权、trim
+后空消息零写入、空 delta、精确 Session logout、重试稳定序号、用户/管理员跨页顺序、12 轮
+token 预算、管理员强哈希幂等 bootstrap、数据库 degraded 启动/cutoff 恢复、上海数据库时区
+下 UTC 输出，以及真实 JSON/SSE 对封闭 OpenAPI Schema 的校验。
 
 ## 合同 Mock
 
@@ -96,6 +106,8 @@ pnpm dev:admin
 ## 下游约束
 
 - WI-003 使用 `GenerationEngine` 接口接入 OpenAI Python SDK，不改变公开合同；
+- provider adapter 必须同时实现当前模型的 token counter，并把合同配置的输出预留真实传给
+  OpenAI；不得恢复固定轮数裁剪；
 - 当前不引入 LangGraph、Redis、任务队列、SSE 事件存储或独立 Agent 服务；
 - WI-004/WI-005 只依赖 Coordinator 接受后的 OpenAPI、示例、类型和 Mock；
 - 合同接受后，路径、字段、状态码、认证、分页、幂等或 SSE 语义变化必须新建合同修订

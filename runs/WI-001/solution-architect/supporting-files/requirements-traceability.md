@@ -10,9 +10,13 @@
 | 流式回复 | 应用级 SSE，不透传供应商事件 | `streaming-protocol.md`、三个 SSE 示例 |
 | 停止保留部分内容 | 持久化 `stop_requested`；消息、generation、call 同一终态 | `POST .../stop`、停止纵向测试 |
 | 断线不直接失败 | 生成任务独立于响应迭代器；重进后读权威状态和部分消息 | `GET .../generations/{id}`、流协议恢复章节 |
-| 进程重启结果确定 | 启动时把遗留 `streaming` 收敛为 `GENERATION_INTERRUPTED` | `GenerationRepository.fail_interrupted_generations` |
+| 进程重启结果确定 | API degraded 启动，恢复后只收敛 cutoff 前遗留 `streaming` | recovery/health 故障测试 |
 | 失败与重试不重复用户消息 | 重试复用原用户消息，新增助手消息、generation 与 call | `POST .../assistant-messages/{id}/retries` |
-| 多轮上下文 | 仅当前用户/会话，最多最近 10 个已完成用户—助手轮次 | `repository.py`、`data-model.md` |
+| 多轮上下文 | 当前模型 token window 减输出/固定预留，超限删除最早完整轮次，无固定轮数 | `context.py`、12 轮裁剪测试 |
+| 同账号多 Session | generation 关联发起 Session；logout 只影响精确 Session | 双 Session logout 测试 |
+| 消息原始稳定顺序 | 会话锁分配唯一 `Message.sequence`；上下文和两端分页按序号 | 同时间戳/重试/跨页测试 |
+| trim 后禁止空消息 | trim 后 1..4000；验证失败零业务写入，空 provider chunk 无 delta | 反例纵向测试 |
+| 对外 UTC | DB `timestamptz` 统一经 UTC serializer；上海时区仅用于展示边界 | Asia/Shanghai DB 测试 |
 | 首个成功回复后生成正式标题 | 同进程非阻塞任务；失败保留临时标题 | `titleStatus`、`titleWillBeAttempted` |
 | 历史分组、搜索和分页 | 按 `lastActivityAt`；Asia/Shanghai 分组；P0 页码分页 | `GET /api/v1/user/conversations` |
 | 首次加载最近 30 条并加载更早消息 | `page/pageSize/total`，默认 30，客户端先算最后一页 | `GET .../conversations/{id}/messages` |
@@ -23,6 +27,7 @@
 | 查看消息及每次实际 Prompt/返回 | `messages` 与 `llm_calls` 分开持久化完整/部分值 | 话题 messages、llm-calls；纵向测试 |
 | 普通用户不能越权 | 所有用户资源查询带当前 `user_id`，越权与不存在同为 404 | ownership 纵向测试 |
 | 单台腾讯云部署 | Nginx + 两个静态站点 + 一个 FastAPI 进程 + PostgreSQL | `architecture.md`、骨架 README |
+| 初始管理员 | migration 后幂等 bootstrap，scrypt 强哈希且重跑不覆盖 | `api:bootstrap-admin`、安全测试 |
 | 无真实凭据 | `.env.example` 仅占位；API Key 不进前端/日志；凭据扫描 | `security.md`、`pnpm security:scan` |
 | 从 chatbot 演进到 Agent | 公开合同隔离 `GenerationEngine`，达到复杂度触发条件后再引入 LangGraph | `architecture.md` 的演进触发器 |
 

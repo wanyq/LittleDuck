@@ -2,9 +2,11 @@ openapi: 3.0.3
 info:
   title: LittleDuck MVP API
   version: 1.0.0
+  x-contract-revision: 7
   description: |
-    WI-001 revision 4 review-candidate API contract.
-    All timestamps are UTC ISO 8601. User-facing grouping and admin date
+    WI-001 revision 7 third-review baseline API contract.
+    All response and event timestamps are serialized as UTC ISO 8601 with a
+    zero offset. User-facing grouping and admin date
     filters use Asia/Shanghai semantics as documented on each operation.
     Semantic changes require a Coordinator-approved contract revision Work Item.
 servers:
@@ -309,7 +311,7 @@ paths:
                 format: binary
               example: |
                 event: generation.started
-                data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":1,"kind":"chat","occurredAt":"2026-07-16T12:00:00Z"}
+                data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":1,"kind":"chat","conversationId":"6bf22123-6db0-4232-929d-3c77272a6ad2","userMessageId":"d5026980-61a4-4478-a045-bd2efbf17abc","assistantMessageId":"4cbe9c70-74ff-4d5c-a70f-131722b21589","temporaryTitle":"帮我写一个 Python 脚本","occurredAt":"2026-07-16T12:00:00Z"}
 
                 event: generation.delta
                 data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":2,"assistantMessageId":"4cbe9c70-74ff-4d5c-a70f-131722b21589","delta":"当然可以。","accumulatedLength":6,"occurredAt":"2026-07-16T12:00:01Z"}
@@ -895,6 +897,7 @@ components:
 
     HealthResponse:
       type: object
+      additionalProperties: false
       required: [status, database, time]
       properties:
         status:
@@ -1044,7 +1047,7 @@ components:
     Message:
       type: object
       additionalProperties: false
-      required: [id, conversationId, role, status, content, createdAt, updatedAt]
+      required: [id, conversationId, sequence, role, status, content, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -1052,6 +1055,11 @@ components:
         conversationId:
           type: string
           format: uuid
+        sequence:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Stable, strictly increasing order inside one conversation
         role:
           type: string
           enum: [user, assistant]
@@ -1115,6 +1123,7 @@ components:
           type: string
           minLength: 1
           maxLength: 4000
+          description: Server trims surrounding whitespace before applying the length limits
 
     RetryGenerationRequest:
       type: object
@@ -1136,6 +1145,10 @@ components:
         - assistantMessageId
         - kind
         - status
+        - stopRequested
+        - errorCode
+        - startedAt
+        - finishedAt
         - createdAt
         - updatedAt
       properties:
@@ -1159,12 +1172,23 @@ components:
           enum: [streaming, completed, failed, stopped]
         stopRequested:
           type: boolean
+        errorCode:
+          type: string
+          nullable: true
+          enum:
+            - LLM_NOT_CONFIGURED
+            - LLM_UNAVAILABLE
+            - LLM_RATE_LIMITED
+            - LLM_TIMEOUT
+            - RESPONSE_PARSE_FAILED
+            - GENERATION_INTERRUPTED
         startedAt:
           type: string
           format: date-time
         finishedAt:
           type: string
           format: date-time
+          nullable: true
         createdAt:
           type: string
           format: date-time

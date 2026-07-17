@@ -44,6 +44,8 @@ Cookie: ld_user_session=<opaque>
 
 `clientMessageId` 由浏览器生成一次并随同一消息的网络重试复用。完整成功、失败和停止
 流分别见 `sse-chat-success.txt`、`sse-chat-failure.txt` 和 `sse-chat-stopped.txt`。
+服务端先 trim 正文；trim 后为空或超过 4,000 字符返回 400 `VALIDATION_ERROR`，且不产生
+会话、消息、generation、LLM call 或 SSE。
 
 ## 3. 重复提交恢复已有状态
 
@@ -95,15 +97,22 @@ Content-Type: application/json
     "kind": "chat",
     "status": "streaming",
     "stopRequested": true,
+    "errorCode": null,
+    "startedAt": "2026-07-16T12:00:00Z",
+    "finishedAt": null,
     "createdAt": "2026-07-16T12:00:00Z",
     "updatedAt": "2026-07-16T12:00:03Z"
   },
   "assistantMessage": {
     "id": "4cbe9c70-74ff-4d5c-a70f-131722b21589",
     "conversationId": "6bf22123-6db0-4232-929d-3c77272a6ad2",
+    "sequence": 2,
     "role": "assistant",
     "status": "generating",
     "content": "已生成的部分内容",
+    "replyToMessageId": "d5026980-61a4-4478-a045-bd2efbf17abc",
+    "generationId": "2c255ae2-d891-4d6c-80c5-3d5ee1f534ca",
+    "canRetry": false,
     "createdAt": "2026-07-16T12:00:00Z",
     "updatedAt": "2026-07-16T12:00:03Z"
   }
@@ -111,6 +120,8 @@ Content-Type: application/json
 ```
 
 重复停止已终态生成返回 HTTP 200 和当前终态，不产生第二个终态事件。
+显式停止仍按当前用户授权；退出登录则只停止由精确当前 Session 发起的 streaming 生成，
+不会撤销或停止同账号其他设备/Session。
 
 ## 5. 重试失败或停止回复
 

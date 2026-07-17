@@ -55,11 +55,17 @@ for (const file of files) {
       if ("sequence" in data) {
         throw new Error(`${file}: heartbeat must not advance the business sequence`);
       }
+      if (!String(data.occurredAt ?? "").endsWith("Z")) {
+        throw new Error(`${file}: heartbeat occurredAt must be UTC`);
+      }
       continue;
     }
 
     firstBusinessEvent ??= event;
     requireKeys(file, event, data, ["generationId", "sequence", "occurredAt"]);
+    if (!String(data.occurredAt).endsWith("Z")) {
+      throw new Error(`${file}: ${event} occurredAt must be UTC`);
+    }
     if (data.sequence !== expectedSequence) {
       throw new Error(
         `${file}: expected data.sequence=${expectedSequence}, got ${data.sequence}`
@@ -77,8 +83,20 @@ for (const file of files) {
       ]);
     } else if (event === "generation.delta") {
       requireKeys(file, event, data, ["assistantMessageId", "delta", "accumulatedLength"]);
+      if (typeof data.delta !== "string" || data.delta.length < 1) {
+        throw new Error(`${file}: generation.delta must not be empty`);
+      }
     } else if (terminalEvents.has(event)) {
       requireKeys(file, event, data, ["generation", "assistantMessage"]);
+      requireKeys(file, event, data.generation, [
+        "stopRequested",
+        "errorCode",
+        "startedAt",
+        "finishedAt",
+        "createdAt",
+        "updatedAt"
+      ]);
+      requireKeys(file, event, data.assistantMessage, ["sequence"]);
       const expectedStatus = event.slice("generation.".length);
       if (
         data.generation.status !== expectedStatus ||
@@ -88,6 +106,11 @@ for (const file of files) {
       }
       if (event === "generation.failed") {
         requireKeys(file, event, data, ["error"]);
+        if (data.generation.errorCode !== data.error.code) {
+          throw new Error(`${file}: failed generation errorCode must match event error`);
+        }
+      } else if (data.generation.errorCode !== null) {
+        throw new Error(`${file}: non-failed generation errorCode must be null`);
       }
       if (event === "generation.stopped") {
         requireKeys(file, event, data, ["stoppedBy"]);

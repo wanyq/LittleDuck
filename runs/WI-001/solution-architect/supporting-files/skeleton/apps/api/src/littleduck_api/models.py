@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -88,12 +89,16 @@ class Conversation(Base, TimestampMixin):
     )
     title: Mapped[str] = mapped_column(String(20), nullable=False)
     title_status: Mapped[str] = mapped_column(String(16), nullable=False, default="temporary")
+    next_message_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     last_activity_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
     __table_args__ = (
         CheckConstraint("title_status IN ('temporary', 'final')", name="ck_conversation_title"),
+        CheckConstraint(
+            "next_message_sequence > 0", name="ck_conversation_next_sequence_positive"
+        ),
         Index("ix_conversations_user_activity", "user_id", "last_activity_at"),
     )
 
@@ -105,6 +110,7 @@ class Message(Base, TimestampMixin):
     conversation_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False
     )
+    sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
     role: Mapped[str] = mapped_column(String(16), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
@@ -116,12 +122,14 @@ class Message(Base, TimestampMixin):
     )
 
     __table_args__ = (
+        UniqueConstraint("conversation_id", "sequence", name="uq_message_conversation_sequence"),
+        CheckConstraint("sequence > 0", name="ck_message_sequence_positive"),
         CheckConstraint("role IN ('user', 'assistant')", name="ck_message_role"),
         CheckConstraint(
             "status IN ('persisted', 'generating', 'completed', 'failed', 'stopped')",
             name="ck_message_status",
         ),
-        Index("ix_messages_conversation_created", "conversation_id", "created_at"),
+        Index("ix_messages_conversation_sequence", "conversation_id", "sequence"),
     )
 
 
@@ -131,6 +139,9 @@ class Generation(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    initiating_session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("user_sessions.id", ondelete="RESTRICT"), nullable=False
     )
     conversation_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False
@@ -145,6 +156,7 @@ class Generation(Base, TimestampMixin):
     kind: Mapped[str] = mapped_column(String(16), nullable=False, default="chat")
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="streaming")
     stop_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    stop_requested_by: Mapped[str | None] = mapped_column(String(16))
     error_code: Mapped[str | None] = mapped_column(String(64))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -155,7 +167,12 @@ class Generation(Base, TimestampMixin):
             "status IN ('streaming', 'completed', 'failed', 'stopped')",
             name="ck_generation_status",
         ),
+        CheckConstraint(
+            "stop_requested_by IS NULL OR stop_requested_by IN ('user', 'logout')",
+            name="ck_generation_stop_requested_by",
+        ),
         Index("ix_generations_conversation_status", "conversation_id", "status"),
+        Index("ix_generations_initiating_session_status", "initiating_session_id", "status"),
         Index(
             "uq_generations_one_streaming_per_conversation",
             "conversation_id",
@@ -171,10 +188,20 @@ class LlmConfig(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     provider: Mapped[str] = mapped_column(String(32), nullable=False, default="openai")
     model: Mapped[str] = mapped_column(String(128), nullable=False)
+    context_window_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
     api_key_ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     api_key_nonce: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
-    __table_args__ = (CheckConstraint("id = 1", name="ck_llm_config_singleton"),)
+    __table_args__ = (
+        CheckConstraint("id = 1", name="ck_llm_config_singleton"),
+        CheckConstraint("context_window_tokens > 0", name="ck_llm_config_context_positive"),
+        CheckConstraint("max_output_tokens > 0", name="ck_llm_config_output_positive"),
+        CheckConstraint(
+            "max_output_tokens < context_window_tokens",
+            name="ck_llm_config_output_below_context",
+        ),
+    )
 
 
 class LlmCall(Base):
@@ -193,6 +220,8 @@ class LlmCall(Base):
     call_type: Mapped[str] = mapped_column(String(16), nullable=False)
     provider: Mapped[str] = mapped_column(String(32), nullable=False)
     model: Mapped[str] = mapped_column(String(128), nullable=False)
+    input_tokens_estimated: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
     prompt: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False)
     response_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -210,5 +239,7 @@ class LlmCall(Base):
             "status IN ('in_progress', 'succeeded', 'failed', 'stopped')",
             name="ck_llm_call_status",
         ),
+        CheckConstraint("input_tokens_estimated >= 0", name="ck_llm_call_input_nonnegative"),
+        CheckConstraint("max_output_tokens > 0", name="ck_llm_call_output_positive"),
         Index("ix_llm_calls_conversation_started", "conversation_id", "started_at"),
     )

@@ -490,6 +490,11 @@ export interface components {
             id: string;
             /** Format: uuid */
             conversationId: string;
+            /**
+             * Format: int64
+             * @description Stable, strictly increasing order inside one conversation
+             */
+            sequence: number;
             /** @enum {string} */
             role: "user" | "assistant";
             /** @enum {string} */
@@ -525,6 +530,7 @@ export interface components {
              * @description Stable browser-generated ID for duplicate prevention
              */
             clientMessageId: string;
+            /** @description Server trims surrounding whitespace before applying the length limits */
             content: string;
         };
         RetryGenerationRequest: {
@@ -547,11 +553,13 @@ export interface components {
             kind: "chat" | "retry";
             /** @enum {string} */
             status: "streaming" | "completed" | "failed" | "stopped";
-            stopRequested?: boolean;
+            stopRequested: boolean;
+            /** @enum {string|null} */
+            errorCode: "LLM_NOT_CONFIGURED" | "LLM_UNAVAILABLE" | "LLM_RATE_LIMITED" | "LLM_TIMEOUT" | "RESPONSE_PARSE_FAILED" | "GENERATION_INTERRUPTED" | null;
             /** Format: date-time */
-            startedAt?: string;
+            startedAt: string;
             /** Format: date-time */
-            finishedAt?: string;
+            finishedAt: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1139,7 +1147,7 @@ export interface operations {
                 content: {
                     /**
                      * @example event: generation.started
-                     *     data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":1,"kind":"chat","occurredAt":"2026-07-16T12:00:00Z"}
+                     *     data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":1,"kind":"chat","conversationId":"6bf22123-6db0-4232-929d-3c77272a6ad2","userMessageId":"d5026980-61a4-4478-a045-bd2efbf17abc","assistantMessageId":"4cbe9c70-74ff-4d5c-a70f-131722b21589","temporaryTitle":"帮我写一个 Python 脚本","occurredAt":"2026-07-16T12:00:00Z"}
                      *
                      *     event: generation.delta
                      *     data: {"generationId":"2c255ae2-d891-4d6c-80c5-3d5ee1f534ca","sequence":2,"assistantMessageId":"4cbe9c70-74ff-4d5c-a70f-131722b21589","delta":"当然可以。","accumulatedLength":6,"occurredAt":"2026-07-16T12:00:01Z"}

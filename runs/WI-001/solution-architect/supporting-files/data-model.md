@@ -13,6 +13,7 @@
 
 ```text
 users 1--N user_sessions
+user_sessions 1--N generations (initiating session)
 users 1--N conversations
 conversations 1--N messages
 conversations 1--N generations
@@ -32,13 +33,14 @@ llm_configs exactly one effective row
 
 ### `user_sessions`
 
-`id`、`user_id`、唯一 `token_hash`、`expires_at`、`revoked_at`、`created_at`。浏览器只持有
-原始随机 Token；数据库泄漏不直接暴露有效 Session。
+`id`、`user_id`、唯一 `token_hash`、`expires_at`、`revoked_at`、`created_at`。认证结果保留
+`user_id + session_id`；浏览器只持有原始随机 Token，数据库泄漏不直接暴露有效 Session。
 
 ### `admins` / `admin_sessions`
 
-与用户身份域分表。`admins.password_hash` 保存强哈希；Session 结构与用户相同，但 Cookie
-名称和 Path 不同。
+与用户身份域分表。`admins.password_hash` 保存 scrypt memory-hard 强哈希；Session 结构与
+用户相同，但 Cookie 名称和 Path 不同。管理员不是 migration 固定数据；migration 后由
+`python -m littleduck_api.bootstrap_admin` 以 `ON CONFLICT DO NOTHING` 幂等创建。
 
 ### `conversations`
 
@@ -47,6 +49,7 @@ llm_configs exactly one effective row
 | `id`, `user_id` | 会话及所有者 |
 | `title` | 最多 20 字符 |
 | `title_status` | `temporary` / `final` |
+| `next_message_sequence` | 事务锁会话后原子预留消息序号 |
 | `last_activity_at` | 成功、失败、停止均更新，用于排序与时间分组 |
 | `created_at`, `updated_at` | UTC 时间 |
 
@@ -57,37 +60,43 @@ llm_configs exactly one effective row
 | 字段 | 说明 |
 | --- | --- |
 | `id`, `conversation_id` | 消息归属 |
+| `sequence` | 会话内严格递增稳定顺序；唯一 `(conversation_id, sequence)` |
 | `role` | `user` / `assistant` |
 | `status` | `persisted` / `generating` / `completed` / `failed` / `stopped` |
 | `content` | 用户正文或助手完整/部分正文 |
 | `reply_to_message_id` | 助手对应的用户消息 |
 | `retry_of_message_id` | 新助手消息所重试的旧助手消息，可空 |
-| `created_at`, `updated_at` | 顺序和显示时间 |
+| `created_at`, `updated_at` | 仅显示时间，不作为相同事务消息的排序键 |
 
-失败或停止助手消息不覆盖；重试新增一条助手消息。上下文只取 persisted 用户消息与
-completed 助手消息的完整轮次。
+普通发送连续预留两个序号；失败或停止助手消息不覆盖；重试复用原用户消息且只为新助手
+预留一个序号。上下文、用户消息页和管理员消息页统一按 `sequence ASC`，只取 persisted
+用户消息与 completed 助手消息的完整轮次。
 
 ### `generations`
 
 | 字段 | 说明 |
 | --- | --- |
 | `id`, `user_id`, `conversation_id` | 生成及权限范围 |
+| `initiating_session_id` | 发起 user Session；历史记录不级联删除 |
 | `user_message_id`, `assistant_message_id` | 输入与输出 |
 | `client_request_id` | 浏览器稳定 UUID，防止弱网重复提交 |
 | `kind` | `chat` / `retry` |
 | `status` | `streaming` / `completed` / `failed` / `stopped` |
 | `stop_requested` | 停止端点设置，生成任务检查 |
+| `stop_requested_by` | `user` / `logout`，驱动 SSE `stoppedBy` |
 | `error_code` | 面向应用的失败码 |
 | `finished_at` | 终态时间 |
 
 唯一约束 `(user_id, client_request_id)`。重复 UUID 返回已有 `generationId`，不保存第二条
-用户消息。事务先锁定当前用户行以串行化同一用户的短创建事务；数据库部分唯一索引再保证
-每个会话最多一个 streaming generation。
+用户消息。事务先锁定精确的当前 Session 行，以闭合认证与并发 logout 之间的竞态；会话行锁
+负责分配稳定消息序号，数据库部分唯一索引再保证每个会话最多一个 streaming generation。
 
 ### `llm_configs`
 
-单行有效配置：`provider`、`model`、`api_key_ciphertext`、`api_key_nonce`。API Key 使用
-AES-256-GCM；加密主密钥不入库。读取接口只对管理员解密。
+单行有效配置：`provider`、`model`、该模型已解析的 `context_window_tokens`、实际
+`max_output_tokens`、`api_key_ciphertext`、`api_key_nonce`。API Key 使用 AES-256-GCM；
+加密主密钥不入库。读取接口只对管理员解密。模型 token 能力由 provider adapter 的受测
+能力表解析，不增加管理 UI 字段。
 
 ### `llm_calls`
 
@@ -97,6 +106,7 @@ AES-256-GCM；加密主密钥不入库。读取接口只对管理员解密。
 | `related_message_id` | 关联助手消息；标题调用可关联触发标题的首条消息 |
 | `call_type` | `chat` / `title` / `retry` |
 | `provider`, `model` | 实际生效配置 |
+| `input_tokens_estimated`, `max_output_tokens` | 实际调用的输入计数与输出预留 |
 | `prompt` | JSONB，实际发送的角色、顺序和正文 |
 | `response_text` | 实际完整或部分聚合返回，可为空 |
 | `status` | `in_progress` / `succeeded` / `failed` / `stopped` |
@@ -113,12 +123,13 @@ AES-256-GCM；加密主密钥不入库。读取接口只对管理员解密。
 
 单事务：
 
-1. 校验 `conversation_id + user_id` 或创建会话；
-2. 检查 `(user_id, client_request_id)`；
-3. 检查会话无 streaming 生成；
-4. 创建用户消息、助手占位、generation；
-5. 组装上下文并创建 in_progress `llm_calls`；
-6. 提交后才启动模型流。
+1. trim 正文并执行 1..4000 校验，随后锁定并重验当前 user Session；
+2. 校验 `conversation_id + user_id` 或创建会话；
+3. 检查 `(user_id, client_request_id)` 和会话无 streaming 生成；
+4. 锁会话并预留两个稳定消息序号；
+5. 按模型预算裁剪最早完整轮次，创建用户消息、助手占位和带发起 Session 的 generation；
+6. 保存实际 Prompt、输入 token 计数、输出上限和 in_progress `llm_calls`；
+7. 提交后才启动模型流。
 
 事务失败时不产生半条历史。模型调用失败发生在事务之后，因此保留已成功发送的用户消息
 和失败助手占位，符合 PRD。
@@ -135,8 +146,10 @@ delta 按短时间窗口合并，更新助手 `content` 和调用 `response_text
 
 ### 4.3 停止与重启
 
-停止端点只设置 `stop_requested`，幂等返回当前 generation。任务观察后写 stopped 终态。
-服务启动时扫描遗留 streaming 行，写 failed/`GENERATION_INTERRUPTED`，保留部分内容。
+显式停止按当前用户设置 `stop_requested_by=user`。退出在一个事务中只撤销当前 Session，并
+只把该 Session 发起的 streaming generation 标为 `stop_requested_by=logout`；同用户其他
+Session 不受影响。服务以 startup cutoff 非阻塞恢复，只扫描 cutoff 前的遗留 streaming，
+写 failed/`GENERATION_INTERRUPTED` 并保留部分内容。
 
 ### 4.4 标题
 
@@ -153,8 +166,9 @@ delta 按短时间窗口合并，更新助手 `content` 和调用 `response_text
 - 服务端限制 `pageSize <= 100`。
 
 页码分页在当前无容量门槛的单机 MVP 中最易实现、测试和说明。查询始终先施加用户/管理员
-权限和筛选，再计算 total 与 offset。数据规模或并发写入导致实际问题时，再以合同修订引入
-keyset cursor。
+权限和筛选，再计算 total 与 offset。消息页固定 `ORDER BY sequence ASC`，因此同时间戳、
+重试和跨页边界不会反序、遗漏或重复。数据规模或并发写入导致实际问题时，再以合同修订
+引入 keyset cursor。
 
 ## 6. 明确移除的数据结构
 

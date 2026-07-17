@@ -1,18 +1,23 @@
 import { readFile, readdir } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 
-const root = resolve(process.cwd(), "..");
-const ignoredDirs = new Set(["node_modules", "dist", ".git"]);
+const root = resolve(process.cwd(), "../..");
+const ignoredDirs = new Set(["node_modules", "dist", ".git", ".venv"]);
 const ignoredFiles = new Set(["pnpm-lock.yaml", "scan-secrets.mjs"]);
 const textExtensions = new Set([
   ".css",
   ".example",
   ".html",
+  ".ini",
   ".js",
   ".json",
+  ".key",
   ".md",
   ".mjs",
+  ".pem",
+  ".py",
   ".sql",
+  ".toml",
   ".ts",
   ".tsx",
   ".txt",
@@ -25,8 +30,8 @@ const highConfidencePatterns = [
   /\bsk-[A-Za-z0-9_-]{20,}\b/,
   /\bgh[oprsu]_[A-Za-z0-9]{30,}\b/,
   /\bAKIA[0-9A-Z]{16}\b/,
-  /CONFIG_ENCRYPTION_KEY=(?!REPLACE_)[^\s]+/,
-  /DATABASE_URL=[a-z]+:\/\/[^:\s]+:(?!REPLACE_ME)[^@\s]+@/
+  /API_KEY_ENCRYPTION_KEY=(?!REPLACE_)[^\s]+/,
+  /DATABASE_URL=(?:postgresql|mysql)(?:\+[a-z0-9_]+)?:\/\/[^:\s]+:(?!(?:REPLACE_[^@\s]*|local-only)@)[^@\s]+@/i
 ];
 
 const findings = [];

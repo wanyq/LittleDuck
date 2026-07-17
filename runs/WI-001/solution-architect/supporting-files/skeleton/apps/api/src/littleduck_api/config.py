@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     admin_session_cookie: str = "ld_admin_session"
     api_key_encryption_key: str | None = Field(default=None, repr=False)
     generation_backend: str = "demo"
+    model_context_window_tokens: int = 8192
+    model_max_output_tokens: int = 1024
+    prompt_overhead_tokens: int = 256
+    recovery_retry_seconds: float = 1.0
+    bootstrap_admin_username: str = "admin"
+    bootstrap_admin_password: str = Field(default="admin", repr=False)
 
 
 @lru_cache

@@ -47,10 +47,20 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("provider", sa.String(length=32), nullable=False),
         sa.Column("model", sa.String(length=128), nullable=False),
+        sa.Column("context_window_tokens", sa.Integer(), nullable=False),
+        sa.Column("max_output_tokens", sa.Integer(), nullable=False),
         sa.Column("api_key_ciphertext", sa.LargeBinary(), nullable=False),
         sa.Column("api_key_nonce", sa.LargeBinary(), nullable=False),
         *timestamps(),
         sa.CheckConstraint("id = 1", name="ck_llm_config_singleton"),
+        sa.CheckConstraint(
+            "context_window_tokens > 0", name="ck_llm_config_context_positive"
+        ),
+        sa.CheckConstraint("max_output_tokens > 0", name="ck_llm_config_output_positive"),
+        sa.CheckConstraint(
+            "max_output_tokens < context_window_tokens",
+            name="ck_llm_config_output_below_context",
+        ),
     )
     op.create_table(
         "user_sessions",
@@ -97,6 +107,9 @@ def upgrade() -> None:
         sa.Column("title", sa.String(length=20), nullable=False),
         sa.Column("title_status", sa.String(length=16), nullable=False),
         sa.Column(
+            "next_message_sequence", sa.BigInteger(), nullable=False, server_default="1"
+        ),
+        sa.Column(
             "last_activity_at",
             sa.DateTime(timezone=True),
             server_default=sa.func.now(),
@@ -105,6 +118,9 @@ def upgrade() -> None:
         *timestamps(),
         sa.CheckConstraint(
             "title_status IN ('temporary', 'final')", name="ck_conversation_title"
+        ),
+        sa.CheckConstraint(
+            "next_message_sequence > 0", name="ck_conversation_next_sequence_positive"
         ),
     )
     op.create_index(
@@ -119,6 +135,7 @@ def upgrade() -> None:
             sa.ForeignKey("conversations.id", ondelete="CASCADE"),
             nullable=False,
         ),
+        sa.Column("sequence", sa.BigInteger(), nullable=False),
         sa.Column("role", sa.String(length=16), nullable=False),
         sa.Column("status", sa.String(length=16), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
@@ -134,13 +151,17 @@ def upgrade() -> None:
         ),
         *timestamps(),
         sa.CheckConstraint("role IN ('user', 'assistant')", name="ck_message_role"),
+        sa.CheckConstraint("sequence > 0", name="ck_message_sequence_positive"),
         sa.CheckConstraint(
             "status IN ('persisted', 'generating', 'completed', 'failed', 'stopped')",
             name="ck_message_status",
         ),
+        sa.UniqueConstraint(
+            "conversation_id", "sequence", name="uq_message_conversation_sequence"
+        ),
     )
     op.create_index(
-        "ix_messages_conversation_created", "messages", ["conversation_id", "created_at"]
+        "ix_messages_conversation_sequence", "messages", ["conversation_id", "sequence"]
     )
     op.create_table(
         "generations",
@@ -149,6 +170,12 @@ def upgrade() -> None:
             "user_id",
             postgresql.UUID(as_uuid=True),
             sa.ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "initiating_session_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("user_sessions.id", ondelete="RESTRICT"),
             nullable=False,
         ),
         sa.Column(
@@ -173,6 +200,7 @@ def upgrade() -> None:
         sa.Column("kind", sa.String(length=16), nullable=False),
         sa.Column("status", sa.String(length=16), nullable=False),
         sa.Column("stop_requested", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("stop_requested_by", sa.String(length=16)),
         sa.Column("error_code", sa.String(length=64)),
         sa.Column("finished_at", sa.DateTime(timezone=True)),
         *timestamps(),
@@ -184,9 +212,18 @@ def upgrade() -> None:
             "status IN ('streaming', 'completed', 'failed', 'stopped')",
             name="ck_generation_status",
         ),
+        sa.CheckConstraint(
+            "stop_requested_by IS NULL OR stop_requested_by IN ('user', 'logout')",
+            name="ck_generation_stop_requested_by",
+        ),
     )
     op.create_index(
         "ix_generations_conversation_status", "generations", ["conversation_id", "status"]
+    )
+    op.create_index(
+        "ix_generations_initiating_session_status",
+        "generations",
+        ["initiating_session_id", "status"],
     )
     op.create_index(
         "uq_generations_one_streaming_per_conversation",
@@ -217,6 +254,8 @@ def upgrade() -> None:
         sa.Column("call_type", sa.String(length=16), nullable=False),
         sa.Column("provider", sa.String(length=32), nullable=False),
         sa.Column("model", sa.String(length=128), nullable=False),
+        sa.Column("input_tokens_estimated", sa.Integer(), nullable=False),
+        sa.Column("max_output_tokens", sa.Integer(), nullable=False),
         sa.Column("prompt", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("response_text", sa.Text(), nullable=False),
         sa.Column("status", sa.String(length=16), nullable=False),
@@ -232,6 +271,10 @@ def upgrade() -> None:
             "status IN ('in_progress', 'succeeded', 'failed', 'stopped')",
             name="ck_llm_call_status",
         ),
+        sa.CheckConstraint(
+            "input_tokens_estimated >= 0", name="ck_llm_call_input_nonnegative"
+        ),
+        sa.CheckConstraint("max_output_tokens > 0", name="ck_llm_call_output_positive"),
     )
     op.create_index(
         "ix_llm_calls_conversation_started", "llm_calls", ["conversation_id", "started_at"]

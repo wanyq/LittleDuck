@@ -1,4 +1,4 @@
-# WI-001 revision 4：技术架构、API 合同与工程骨架
+# WI-001 revision 7：技术架构、API 合同与工程骨架
 
 ## 结论
 
@@ -47,6 +47,8 @@ Python/FastAPI + SDK、Python/FastAPI + LangGraph 三条可行路线，并逐项
 
 - 用户与管理员使用不同 API 前缀、Cookie 名、Cookie Path、Session 表和认证依赖；
 - Session Token 至少 256 位，数据库只保存 SHA-256 哈希，默认 7 天；
+- Principal 保留 `user_id + session_id`，generation 关联发起 Session；logout 只影响精确
+  当前 Session，同账号其他设备不受影响；
 - 所有用户资源查询同时包含当前 `user_id`，不存在与越权统一 404；
 - 同源部署不另发 CSRF Token；SameSite=Lax Cookie、精确 Origin、Fetch Metadata、JSON-only
   mutation 和无宽松 CORS 共同防护跨站写入；
@@ -54,6 +56,9 @@ Python/FastAPI + SDK、Python/FastAPI + LangGraph 三条可行路线，并逐项
   `generationId`，不引入通用请求指纹表；
 - OpenAI API Key 以 AES-256-GCM 密文 + 随机 nonce 保存，主密钥只来自部署 Secret；只对
   已认证管理员短暂解密并完整显示，响应不缓存、日志不记录；
+- migration 后通过幂等 CLI 创建 `admin/admin`，密码以 memory-hard scrypt 强哈希保存；
+- 消息以会话内唯一 `sequence` 排序；上下文按模型 token 预算删除最早完整轮次，无固定
+  10 轮上限；
 - `llm_calls` 保存实际 Prompt、完整/部分返回、终态和筛选后的供应商错误，测试连接不进入
   用户话题调用记录。
 
@@ -69,8 +74,9 @@ Python/FastAPI + SDK、Python/FastAPI + LangGraph 三条可行路线，并逐项
 停止请求先持久化 `stopRequested=true`，任务在下一个取消点停止供应商流，保留部分正文，
 并把 generation、助手消息和 LLM call 写为同一 stopped 终态。浏览器断线只移除订阅者，
 不取消进程内任务；重新进入后读取 generation 与消息，仍为 streaming 时短轮询。P0 不做
-事件级重放。进程重启后，启动逻辑把遗留 streaming 收敛为 failed/
-`GENERATION_INTERRUPTED`，保留部分内容并允许重试。
+事件级重放。进程重启后 API 可先以 degraded 启动；数据库恢复后只把 startup cutoff 前
+遗留 streaming 收敛为 failed/`GENERATION_INTERRUPTED`，完成后 readiness 才变为 200。
+所有对外时间显式转换为 UTC。
 
 协议和三个完整流示例见 `supporting-files/contracts/streaming-protocol.md` 与
 `supporting-files/examples/sse-chat-*.txt`。
@@ -84,6 +90,9 @@ Python/FastAPI + SDK、Python/FastAPI + LangGraph 三条可行路线，并逐项
 - 确定性、无凭据的 `DemoGenerationEngine`；
 - 请求 → PostgreSQL 事务 → SSE → 完成终态 → 权威读取纵向切片；
 - 停止并保留部分内容、重复 UUID、越权 404、同源拒绝、Prompt/响应记录和 AES-GCM 测试；
+- trim 后空消息零写入、空 delta 过滤、双 Session logout、重试/同时间戳/跨页稳定顺序；
+- token-aware 裁剪、管理员幂等强哈希 bootstrap、degraded/cutoff 恢复和 UTC；
+- 实际 JSON 与 SSE data 对封闭 OpenAPI Schema 的严格校验；
 - OpenAPI lint/类型生成、SSE 示例校验、无第三方运行依赖的合同 Mock 和凭据扫描；
 - 只有占位值的 `.env.example`。
 
@@ -97,7 +106,7 @@ Python/FastAPI + SDK、Python/FastAPI + LangGraph 三条可行路线，并逐项
 
 - PostgreSQL migration `upgrade -> downgrade -> upgrade`；
 - Python ruff 与严格 mypy；
-- PostgreSQL 纵向测试 5/5；
+- PostgreSQL 与纯函数测试 17/17；
 - OpenAPI lint 与 TypeScript 类型再生成；
 - 三类 SSE 示例的字段、顺序与唯一终态校验；
 - 两个前端和两个共享包的 TypeScript typecheck 与生产构建；

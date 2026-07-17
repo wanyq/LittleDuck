@@ -17,7 +17,7 @@
 
 | HTTP | code | 使用场景 |
 | --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Schema、路径、query 或 body 非法 |
+| 400 | `VALIDATION_ERROR` | Schema、路径、query 或 body 非法；正文按 trim 后 1..4000 校验，或当前输入本身超过模型输入预算 |
 | 400 | `INVALID_VERIFICATION_CODE` | 验证码不是 `000000` |
 | 400 | `PAGE_INVALID` | `page` 或 `pageSize` 超出合同范围 |
 | 400 | `DATE_RANGE_INVALID` | 管理端日期范围反向或格式非法 |
@@ -47,6 +47,10 @@ SSE 响应建立后不再改变 HTTP 状态。业务失败以唯一终态 `gener
 - `LLM_TIMEOUT`
 - `RESPONSE_PARSE_FAILED`
 - `GENERATION_INTERRUPTED`
+
+所有 `Generation` JSON 形状固定包含 `errorCode`：streaming/completed/stopped 为 `null`，
+failed 为上述公开码，且与 `generation.failed.error.code` 一致。`finishedAt` 在 streaming 时为
+`null`，进入任一终态后为 UTC date-time。
 
 供应商原始错误只进入管理员可见的 `llm_calls.providerError`。浏览器断线不是业务错误；
 重新进入页面后读取生成状态和消息，不存在流重放错误码。

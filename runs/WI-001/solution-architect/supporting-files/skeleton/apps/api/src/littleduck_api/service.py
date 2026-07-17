@@ -3,11 +3,11 @@ import contextlib
 import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from typing import Any
 
 from .engine import GenerationEngine
-from .repository import CreatedGeneration, GenerationRepository
+from .repository import CreatedGeneration, GenerationRepository, UserPrincipal
+from .time import utc_now_iso
 
 
 @dataclass(frozen=True)
@@ -23,6 +23,7 @@ class RuntimeState:
     subscribers: set[asyncio.Queue[DomainEvent]] = field(default_factory=set)
     task: asyncio.Task[None] | None = None
     sequence: int = 1
+    stop_reason: str = "user"
 
 
 class GenerationService:
@@ -34,17 +35,36 @@ class GenerationService:
     async def create(
         self,
         *,
-        user_id: uuid.UUID,
+        principal: UserPrincipal,
         client_request_id: uuid.UUID,
         content: str,
         conversation_id: uuid.UUID | None,
     ) -> tuple[CreatedGeneration, AsyncIterator[DomainEvent]]:
         created = await self._repository.create_generation(
-            user_id=user_id,
+            principal=principal,
             client_request_id=client_request_id,
             content=content,
             conversation_id=conversation_id,
         )
+        return self._start(created)
+
+    async def retry(
+        self,
+        *,
+        principal: UserPrincipal,
+        client_request_id: uuid.UUID,
+        assistant_message_id: uuid.UUID,
+    ) -> tuple[CreatedGeneration, AsyncIterator[DomainEvent]]:
+        created = await self._repository.create_retry(
+            principal=principal,
+            client_request_id=client_request_id,
+            assistant_message_id=assistant_message_id,
+        )
+        return self._start(created)
+
+    def _start(
+        self, created: CreatedGeneration
+    ) -> tuple[CreatedGeneration, AsyncIterator[DomainEvent]]:
         state = RuntimeState()
         queue: asyncio.Queue[DomainEvent] = asyncio.Queue()
         state.subscribers.add(queue)
@@ -62,7 +82,7 @@ class GenerationService:
                     "kind": created.kind,
                     "sequence": 1,
                     "temporaryTitle": created.title,
-                    "occurredAt": datetime.now(UTC).isoformat(),
+                    "occurredAt": utc_now_iso(),
                 },
             )
             try:
@@ -76,18 +96,28 @@ class GenerationService:
 
         return created, events()
 
-    async def request_stop(self, generation_id: uuid.UUID, user_id: uuid.UUID) -> dict[str, object]:
-        view = await self._repository.request_stop(generation_id, user_id)
+    async def request_stop(
+        self, generation_id: uuid.UUID, principal: UserPrincipal
+    ) -> dict[str, object]:
+        view = await self._repository.request_stop(generation_id, principal.user_id)
         state = self._states.get(generation_id)
         if state is not None:
+            state.stop_reason = "user"
             state.stop.set()
         return view
+
+    async def logout(self, principal: UserPrincipal) -> None:
+        for generation_id in await self._repository.logout_user(principal):
+            state = self._states.get(generation_id)
+            if state is not None:
+                state.stop_reason = "logout"
+                state.stop.set()
 
     async def shutdown(self) -> None:
         tasks: list[asyncio.Task[None]] = []
         for state in self._states.values():
-            state.stop.set()
             if state.task is not None:
+                state.task.cancel()
                 tasks.append(state.task)
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -95,11 +125,12 @@ class GenerationService:
     async def _run(self, created: CreatedGeneration, state: RuntimeState) -> None:
         try:
             async for delta in self._engine.stream(created.prompt):
-                if state.stop.is_set() or await self._repository.stop_requested(
-                    created.generation_id
-                ):
-                    await self._stop(created.generation_id, state)
+                requested, reason = await self._repository.stop_request(created.generation_id)
+                if state.stop.is_set() or requested:
+                    await self._stop(created.generation_id, state, reason or state.stop_reason)
                     return
+                if delta == "":
+                    continue
                 content = await self._repository.append_delta(created.generation_id, delta)
                 state.sequence += 1
                 self._publish(
@@ -112,13 +143,14 @@ class GenerationService:
                             "sequence": state.sequence,
                             "delta": delta,
                             "accumulatedLength": len(content),
-                            "occurredAt": datetime.now(UTC).isoformat(),
+                            "occurredAt": utc_now_iso(),
                         },
                     ),
                 )
 
-            if state.stop.is_set() or await self._repository.stop_requested(created.generation_id):
-                await self._stop(created.generation_id, state)
+            requested, reason = await self._repository.stop_request(created.generation_id)
+            if state.stop.is_set() or requested:
+                await self._stop(created.generation_id, state, reason or state.stop_reason)
                 return
 
             view = await self._repository.finish(created.generation_id, "completed")
@@ -131,12 +163,14 @@ class GenerationService:
                         "generationId": str(created.generation_id),
                         "sequence": state.sequence,
                         "titleWillBeAttempted": False,
-                        "occurredAt": datetime.now(UTC).isoformat(),
+                        "occurredAt": utc_now_iso(),
                         **view,
                     },
                     terminal=True,
                 ),
             )
+        except asyncio.CancelledError:
+            raise
         except Exception:
             view = await self._repository.finish(
                 created.generation_id, "failed", error_code="LLM_UNAVAILABLE"
@@ -154,7 +188,7 @@ class GenerationService:
                             "message": "回复生成失败，请稍后重试",
                             "retryable": True,
                         },
-                        "occurredAt": datetime.now(UTC).isoformat(),
+                        "occurredAt": utc_now_iso(),
                         **view,
                     },
                     terminal=True,
@@ -163,7 +197,9 @@ class GenerationService:
         finally:
             self._states.pop(created.generation_id, None)
 
-    async def _stop(self, generation_id: uuid.UUID, state: RuntimeState) -> None:
+    async def _stop(
+        self, generation_id: uuid.UUID, state: RuntimeState, stopped_by: str
+    ) -> None:
         view = await self._repository.finish(generation_id, "stopped")
         state.sequence += 1
         self._publish(
@@ -173,8 +209,8 @@ class GenerationService:
                 {
                     "generationId": str(generation_id),
                     "sequence": state.sequence,
-                    "stoppedBy": "user",
-                    "occurredAt": datetime.now(UTC).isoformat(),
+                    "stoppedBy": stopped_by,
+                    "occurredAt": utc_now_iso(),
                     **view,
                 },
                 terminal=True,

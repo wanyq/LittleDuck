@@ -26,6 +26,7 @@ const conversation = {
 const userMessage = {
   id: ids.userMessage,
   conversationId: ids.conversation,
+  sequence: 1,
   role: "user",
   status: "persisted",
   content: "帮我写一个 Python 脚本",
@@ -36,6 +37,7 @@ const userMessage = {
 const assistantMessage = {
   id: ids.assistantMessage,
   conversationId: ids.conversation,
+  sequence: 2,
   role: "assistant",
   status: "completed",
   content: "当然可以。请告诉我脚本要完成什么功能？",
@@ -54,6 +56,7 @@ const generation = {
   kind: "chat",
   status: "completed",
   stopRequested: false,
+  errorCode: null,
   startedAt: now,
   finishedAt: "2026-07-16T12:00:04Z",
   createdAt: now,
@@ -130,7 +133,7 @@ function streamGeneration(request, response, kind = "chat") {
       data: {
         generationId: ids.generation,
         sequence: 3,
-        generation: { ...generation, status: "failed" },
+        generation: { ...generation, status: "failed", errorCode: "LLM_UNAVAILABLE" },
         assistantMessage: {
           ...assistantMessage,
           status: "failed",
@@ -287,7 +290,11 @@ const server = createServer(async (request, response) => {
     }
 
     if (method === "POST" && path === "/api/v1/user/generations") {
-      await readJson(request);
+      const body = await readJson(request);
+      if (typeof body.content !== "string" || body.content.trim().length < 1 || body.content.trim().length > 4000) {
+        error(response, 400, "VALIDATION_ERROR", "请求参数不正确");
+        return;
+      }
       if (request.headers["x-mock-scenario"] === "duplicate-message") {
         error(response, 409, "DUPLICATE_MESSAGE", "该消息已经提交，请读取已有生成状态", {
           generationId: ids.generation
@@ -308,7 +315,8 @@ const server = createServer(async (request, response) => {
         generation: {
           ...generation,
           status: "streaming",
-          finishedAt: undefined,
+          errorCode: null,
+          finishedAt: null,
           stopRequested: true,
           updatedAt: new Date().toISOString()
         },
