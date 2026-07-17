@@ -3,11 +3,11 @@ run_id: RUN-WI-001-solution-architect
 work_item_id: WI-001
 work_item_revision: 7
 agent_id: solution-architect
-status: active
+status: in_review
 
 started_at: "2026-07-16T12:27:36Z"
-updated_at: "2026-07-17T09:35:09Z"
+updated_at: "2026-07-17T09:35:56Z"
 
-progress_summary: WI-001 revision 7 的九类退修项已同步落实到架构、合同、DDL、migration、Mock、生成类型与可运行骨架；从零迁移和漂移检查通过，后端 17/17、前端/共享类型与构建、OpenAPI/SSE/凭据扫描均通过；无历史上下文 Sub-agent 最终技术一致性审计 PASS
-next_step: 用户已确认方案；提交并推送当前交付快照，然后将 Run 设为 in_review 并发送第三次 artifact_review_requested
+progress_summary: WI-001 revision 7 的九类退修项已同步落实到架构、合同、DDL、migration、Mock、生成类型与可运行骨架；从零迁移和漂移检查通过，后端 17/17、前端/共享类型与构建、OpenAPI/SSE/凭据扫描均通过；无历史上下文 Sub-agent 最终技术一致性审计 PASS，现提交第三次审核
+next_step: Run 已冻结；发送第三次 artifact_review_requested 后等待 Coordinator 审核，不再修改提交内容
 blocker: null
