@@ -1,0 +1,25 @@
+schema_version: "0.1"
+message_id: msg-61efb645-8ef6-4e28-b9dd-506c0026c959
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: run_resumed
+
+sender_agent_id: solution-architect
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: run
+  id: RUN-WI-001-solution-architect
+  revision: 4
+
+summary: WI-001 Run 已按第一次审核反馈恢复 active 并开始整体退修
+created_at: "2026-07-17T02:51:40Z"
+idempotency_key: run-resumed/littleduck-mvp-001/RUN-WI-001-solution-architect/review-attempt-1
+
+payload:
+  work_item_id: WI-001
+  work_item_revision: 4
+  run_path: runs/WI-001/solution-architect
+  review_response_message_id: msg-79aa044c-e96e-4364-a223-0ebc1d597b1c
+  next_action: 重做最小充分架构、Python/FastAPI 工程骨架与纵向验证切片后再次提交审核
