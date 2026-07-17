@@ -13,6 +13,7 @@ $SUPPORT/copy-catalog.md
 $SUPPORT/input-mapping.md
 $SUPPORT/design-decisions.md
 $SUPPORT/littleduck-logo.svg
+$SUPPORT/littleduck-admin-logo.svg
 $SUPPORT/h5-visual-board.html
 $SUPPORT/h5-visual-board.png
 $SUPPORT/admin-visual-board.html
@@ -48,15 +49,24 @@ fi
 for html in "$SUPPORT/h5-visual-board.html" "$SUPPORT/admin-visual-board.html"; do
   rg -Fq '<!doctype html>' "$html"
   rg -Fq 'PRD' "$html"
-  rg -Fq 'background:url("littleduck-logo.svg")' "$html" || { echo "FAIL formal-logo-not-used: $html"; exit 1; }
   if rg -n '\.duck\{[^}]*background:var\(--g\)|\.duck:(before|after)' "$html"; then
     echo "FAIL abstract-duck-placeholder-found: $html"
     exit 1
   fi
 done
 
-for detail in '<ellipse cx="81" cy="49"' '#23262B' '#FFAA2F' '#31B58B' 'stroke="#24966F"'; do
-  rg -Fq "$detail" "$SUPPORT/littleduck-logo.svg" || { echo "FAIL logo-detail-missing: $detail"; exit 1; }
+rg -Fq 'background:url("littleduck-logo.svg")' "$SUPPORT/h5-visual-board.html" || { echo "FAIL H5-formal-logo-not-used"; exit 1; }
+rg -Fq 'background:url("littleduck-admin-logo.svg")' "$SUPPORT/admin-visual-board.html" || { echo "FAIL admin-formal-logo-not-used"; exit 1; }
+if rg -Fq 'littleduck-admin-logo.svg' "$SUPPORT/h5-visual-board.html" || rg -Fq 'background:url("littleduck-logo.svg")' "$SUPPORT/admin-visual-board.html"; then
+  echo "FAIL cross-end-logo-mix"
+  exit 1
+fi
+
+for detail in '<ellipse cx="48" cy="60"' '<ellipse cx="80" cy="60"' '<ellipse cx="64" cy="69"' '#FFAA2F' '#31B58B'; do
+  rg -Fq "$detail" "$SUPPORT/littleduck-logo.svg" || { echo "FAIL H5-logo-detail-missing: $detail"; exit 1; }
+done
+for detail in '<ellipse cx="48" cy="39"' '<path fill="#E6F4EF"' 'M68 96v13M88 96v13' 'M60 111h13M81 111h13' '#FFAA2F' '#31B58B'; do
+  rg -Fq "$detail" "$SUPPORT/littleduck-admin-logo.svg" || { echo "FAIL admin-logo-detail-missing: $detail"; exit 1; }
 done
 
 if command -v sips >/dev/null 2>&1; then
@@ -71,6 +81,6 @@ fi
 
 echo "PASS 11 inputs mapped"
 echo "PASS required state/rule coverage"
-echo "PASS reusable formal logo usage and anti-regression check"
+echo "PASS separate H5 face-duck and admin full-duck assets with anti-regression checks"
 echo "PASS credential pattern scan"
 echo "PASS delivery validation"
