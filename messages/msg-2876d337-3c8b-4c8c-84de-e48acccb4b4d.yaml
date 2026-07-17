@@ -1,0 +1,25 @@
+schema_version: "0.1"
+message_id: msg-2876d337-3c8b-4c8c-84de-e48acccb4b4d
+mission_id: littleduck-mvp-001
+intent: notification
+message_type: run_resumed
+
+sender_agent_id: solution-architect
+recipient_agent_ids:
+  - coordinator
+
+subject:
+  type: run
+  id: RUN-WI-001-solution-architect
+  revision: 7
+
+summary: WI-001 revision 7 原 Run 已在第二次审核退修后恢复 active
+created_at: "2026-07-17T08:21:56Z"
+idempotency_key: run-resumed/littleduck-mvp-001/RUN-WI-001-solution-architect/review-attempt-2
+
+payload:
+  work_item_id: WI-001
+  work_item_revision: 7
+  run_path: runs/WI-001/solution-architect
+  review_response_message_id: msg-ec3ecaa5-539e-4b40-8e26-3ff3d883163c
+  next_action: 按第二次审核意见完成整改、全量自测与无历史上下文 Sub-agent 独立复核后再提交审核

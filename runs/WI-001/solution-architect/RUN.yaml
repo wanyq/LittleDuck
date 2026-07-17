@@ -1,13 +1,13 @@
 schema_version: "0.1"
 run_id: RUN-WI-001-solution-architect
 work_item_id: WI-001
-work_item_revision: 5
+work_item_revision: 7
 agent_id: solution-architect
-status: in_review
+status: active
 
 started_at: "2026-07-16T12:27:36Z"
-updated_at: "2026-07-17T07:53:15Z"
+updated_at: "2026-07-17T08:21:56Z"
 
-progress_summary: WI-001 revision 5 退修成果已完成并提交审核；已重建最小充分架构、OpenAPI/SSE/错误/示例/Mock/生成类型、Python/FastAPI/PostgreSQL 工程骨架与 migration，并通过合同、迁移、5 项纵向测试、真实 readiness、Mock、类型、构建和凭据扫描
-next_step: 冻结当前 Run，等待 Coordinator 对第二次 artifact_review_requested 进行审核
+progress_summary: Coordinator 第二次审核已退修；Run 已按 WI-001 revision 7 恢复 active，并记录管理员幂等引导、会话级生成归属、token-aware 上下文、稳定消息序号、空白输入、严格响应合同、UTC 时间和降级启动/readiness 等整改项
+next_step: 完成全部合同、迁移、Mock、生成类型、工程骨架和测试整改；运行全量自测，并在第三次提交前由无历史上下文 Sub-agent 独立复核
 blocker: null
