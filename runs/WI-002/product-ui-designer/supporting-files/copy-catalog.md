@@ -1,5 +1,7 @@
 # LittleDuck MVP UI 文案清单
 
+版本：WI-002 revision 6；文案层级优先沿用 11 张正式 UI 稿，异常与恢复文案以 PRD V1.7 为准。
+
 ## 1. 用户端认证
 
 | ID | 场景 | 文案 |
@@ -70,7 +72,8 @@
 
 | ID | 场景 | 文案 |
 | --- | --- | --- |
-| ADMIN-BRAND | 品牌 | LittleDuck 管理端 |
+| ADMIN-BRAND | 品牌 | LittleDuck 管理后台 |
+| ADMIN-BRAND-SUB | 品牌副标题 | 管理后台 |
 | ADMIN-MENU-CONFIG | 导航 | LLM 配置 |
 | ADMIN-MENU-CHATS | 导航 | 聊天记录 |
 | ADMIN-LOGOUT | 导航 | 退出登录 |
@@ -88,7 +91,8 @@
 
 | ID | 场景 | 文案 |
 | --- | --- | --- |
-| ADMIN-LOGIN-TITLE | 标题 | 管理员登录 |
+| ADMIN-LOGIN-TITLE | 标题 | LittleDuck 管理后台 |
+| ADMIN-LOGIN-DESC | 副标题 | 登录后管理模型配置与聊天记录 |
 | ADMIN-ACCOUNT | 字段 | 管理员账号 |
 | ADMIN-PASSWORD | 字段 | 密码 |
 | ADMIN-LOGIN-ACTION | 按钮 | 登录 |
@@ -111,9 +115,9 @@
 | CONFIG-TEST-FEE | 提示 | 测试可能产生少量模型费用 |
 | CONFIG-TEST-SUCCESS | 成功 | 连接成功 |
 | CONFIG-TEST-FAILED-SUFFIX | 失败补充 | 仍可保存当前配置 |
-| CONFIG-SAVE | 按钮 | 保存 |
+| CONFIG-SAVE | 按钮 | 保存配置 |
 | CONFIG-SAVING | 保存中 | 保存中… |
-| CONFIG-SAVE-SUCCESS | Toast | 配置已保存并立即生效 |
+| CONFIG-SAVE-SUCCESS | Toast | 配置保存成功，已立即生效 |
 | CONFIG-SAVE-FAILED | 失败 | 保存失败，请重试 |
 | CONFIG-API-KEY-REQUIRED | 必填 | 请输入 API Key |
 | CONFIG-MODEL-REQUIRED | 必填 | 请输入模型 |
@@ -158,4 +162,3 @@
 | STATUS-SUCCESS | 状态 | 成功 |
 | STATUS-FAILED | 状态 | 失败 |
 | STATUS-STOPPED | 状态 | 已停止 |
-

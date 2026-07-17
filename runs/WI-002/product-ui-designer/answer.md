@@ -1,61 +1,48 @@
-# WI-002 用户端与管理端 UX/UI 规格
+# WI-002 revision 6 用户端与管理端完整 UX/UI 交付
 
 ## 结论
 
-已依据 PRD V1.7 与 `/页面UI稿` 完成 LittleDuck MVP 的用户端 H5 和 PC Web 管理端完整 UX/UI 规格。
+已依据 PRD V1.7、`页面UI稿/用户端UI` 的 5 张正式稿和 `页面UI稿/管理端UI` 的 6 张正式稿，完整重做 LittleDuck MVP 用户端 H5 与 PC Web 管理端规格。
 
-交付保持现有 UI 的核心方向：鸭子品牌、绿色主色、高留白、圆角和轻边框；补齐了基准稿未覆盖的加载、空态、失败、生成、停止和重试状态，并明确隐藏图片、附件及“+”等多模态入口。管理端采用适合 1280 px 及以上桌面浏览器的左侧导航 + 右侧内容布局，没有增加 PRD 范围外功能。
+本次交付以 11 张正式稿为主要视觉基准，保留鸭子 Logo、绿色品牌色、白/浅灰画布、圆角、低阴影、侧栏、表格、页签和步骤轴；补齐设计稿未覆盖的加载、空态、失败、生成、停止、重试、表单校验和恢复路径。所有偏差均来自 PRD 冲突或缺失状态，不新增范围外能力。
 
-## 覆盖范围
+## 完成范围
 
-- 注册、登录的默认、合法输入、验证码已获取、字段错误、账号状态、提交中、网络失败和成功状态；
-- 聊天的新对话空态、页面加载、消息发送、流式生成、停止、失败、重试、断网、登录失效和历史分页状态；
-- 375–430 px H5 的动态视口、软键盘、安全区、抽屉、滚动、横屏和字体放大规则；
-- 历史侧边栏的时间分组、搜索、无结果、增量加载/失败、当前会话和生成中锁定状态；
-- 管理员登录、LLM 配置、话题列表、聊天详情和 LLM 调用详情；
-- PC 长文本、代码块、Prompt/返回内容的折叠、滚动、复制和状态徽标；
-- 可供前端实现与 QA 编写用例的状态迁移、尺寸、组件、交互、响应式和文案定义。
+- 用户端注册、登录、聊天和历史抽屉的完整状态、迁移、文案和恢复动作；
+- 375–430 CSS px H5 的软键盘、安全区、动态视口、抽屉锁定、消息滚动、历史分页、横屏和字体放大规则；
+- 管理员登录、LLM 配置、话题列表、聊天记录详情和 LLM 调用详情的 PC 规格；
+- 管理端骨架、空态、无结果、失败、按钮加载/禁用、校验、Toast、长文本折叠、代码滚动和复制；
+- 11 张输入逐项映射、PRD 例外和设计取舍；
+- HTML 高保真视觉板、PNG 渲染结果、可复现渲染脚本和自动验证脚本。
+
+## 关键决策
+
+- H5 最终输入区只有纯文本框与发送/停止按钮；原稿的“+”和图片入口不实现。
+- 话题列表沿用正式稿表格与分页控件，但默认改为 PRD 要求的每页 20 条。
+- API Key 以完整明文呈现；交付只使用明确假的 `EXAMPLE_NOT_A_REAL_OPENAI_API_KEY_000000`，不采用掩码或类似真实格式的示例。
+- Prompt 按该次调用真实角色与顺序展示；没有 System Prompt 时不渲染 system 行，也不补原始请求体。
+- 管理端只读；不增加编辑、删除、下载、更多菜单、Prompt 修改或重新发起用户对话。
+- 组件补充稿中的骨架、空态、失败、校验、Toast、折叠和复制被采用；范围外动作与 API Key 掩码样例被排除。
 
 ## 交付索引
 
-1. [`supporting-files/ux-ui-spec.md`](supporting-files/ux-ui-spec.md)
+1. [`supporting-files/ux-ui-spec.md`](supporting-files/ux-ui-spec.md)：完整 H5/PC 规格、状态、迁移、尺寸、交互、响应式、可访问性与 QA 映射。
+2. [`supporting-files/copy-catalog.md`](supporting-files/copy-catalog.md)：按稳定 ID 组织的用户端和管理端最终文案。
+3. [`supporting-files/input-mapping.md`](supporting-files/input-mapping.md)：5 张用户端 + 6 张管理端输入到最终页面、组件和状态的逐项映射。
+4. [`supporting-files/design-decisions.md`](supporting-files/design-decisions.md)：PRD 例外、正式稿取舍和未新增能力声明。
+5. [`supporting-files/h5-visual-board.html`](supporting-files/h5-visual-board.html)：H5 高保真基准与最终状态补稿源码。
+6. [`supporting-files/h5-visual-board.png`](supporting-files/h5-visual-board.png)：1680 × 3200 Chrome 渲染结果。
+7. [`supporting-files/admin-visual-board.html`](supporting-files/admin-visual-board.html)：PC 管理端高保真基准、最终页面和状态矩阵源码。
+8. [`supporting-files/admin-visual-board.png`](supporting-files/admin-visual-board.png)：1800 × 5900 Chrome 渲染结果。
+9. [`supporting-files/scripts/render-boards.sh`](supporting-files/scripts/render-boards.sh)：可重复执行的两板渲染脚本。
+10. [`supporting-files/scripts/validate-delivery.sh`](supporting-files/scripts/validate-delivery.sh)：输入映射、内容、尺寸和凭据模式自动检查。
+11. [`supporting-files/self-test.md`](supporting-files/self-test.md)：环境、步骤、自动结果、人工视觉检查和已知限制。
 
-   完整 UX/UI 总规格，包含视觉 Token、H5/PC 布局、全部状态、交互规则、状态迁移、实现检查点与 QA 映射。
+## 验证结论
 
-2. [`supporting-files/copy-catalog.md`](supporting-files/copy-catalog.md)
-
-   用户端与管理端文案清单，按稳定 ID、场景和最终文案组织。
-
-3. [`supporting-files/h5-visual-board.html`](supporting-files/h5-visual-board.html)
-
-   可直接浏览的 H5 状态视觉板源码，覆盖认证错误、新对话、流式生成、停止/失败/重试、历史抽屉和软键盘安全区。
-
-4. [`supporting-files/h5-visual-board.png`](supporting-files/h5-visual-board.png)
-
-   经 Chrome 1580 × 2320 无头渲染并视觉检查的 H5 视觉板。
-
-5. [`supporting-files/admin-visual-board.html`](supporting-files/admin-visual-board.html)
-
-   可直接浏览的 PC 管理端视觉板源码，覆盖管理员登录、LLM 配置、话题列表、聊天详情和 LLM 调用详情。
-
-6. [`supporting-files/admin-visual-board.png`](supporting-files/admin-visual-board.png)
-
-   经 Chrome 1800 × 2860 无头渲染并视觉检查的 PC 管理端视觉板。
-
-## 关键实现约束
-
-- H5 输入区只保留纯文本输入和发送/停止按钮。
-- 首条用户消息保存成功后才创建会话；发送失败不进入历史列表。
-- 重试不重复用户消息，原失败/停止助手记录保留，新回复追加。
-- 生成中可打开和搜索侧边栏，但不能切换会话或进入新对话。
-- 软键盘使用 `100dvh`/`visualViewport` 等效方案保证输入区不被遮挡。
-- 管理端测试连接失败仍允许保存；保存成功后立即用于后续业务调用。
-- Prompt 只展示实际存在的角色与内容，不补造 System Prompt 或原始 API 请求体。
-
-## 验证
-
-- 两张 HTML 视觉板均由本机 Chrome 无头渲染为 PNG；
-- 已检查 PNG 完整性、页面无截断、核心状态可读；
-- 已执行 `git diff --check`，未发现空白符错误；
-- 管理端视觉板中的 API Key 使用完整可见的 `EXAMPLE_NOT_A_REAL_OPENAI_API_KEY_000000` 假占位值，不使用掩码、截断或显隐切换；
-- 交付不包含真实 API Key、SSH 私钥、Token 或生产凭据。
+- 两张 PNG 均由交付内 HTML 直接渲染，无手工后期修改；
+- 11 张正式输入全部映射，无遗漏页面；
+- H5 最终补稿覆盖加载、空态、发送失败、生成、停止、重试、抽屉锁定、断网、键盘和安全区；
+- PC 最终补稿覆盖登录错误、配置测试/保存、20 条分页、聊天多状态、真实 Prompt、空态、失败和复制；
+- `validate-delivery.sh` 全部通过；凭据模式扫描未发现私钥、Token 或疑似真实 API Key；
+- 原始正式稿缩略图只作为输入映射证据，所有 PRD 冲突均有黄色标注；最终实现以“最终实现补稿”和 `ux-ui-spec.md` 为准。

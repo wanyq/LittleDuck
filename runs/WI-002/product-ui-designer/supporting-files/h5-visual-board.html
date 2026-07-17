@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>LittleDuck H5 状态视觉板</title>
 <style>
-:root{--g:#36ab84;--gd:#268b6b;--gl:#e8f5f0;--bg:#f8f8fa;--text:#1f2329;--sub:#737b86;--line:#e1e3e6;--danger:#d64545;--danger-bg:#fff0f0;--warn:#b76e00;--warn-bg:#fff6e5}
+:root{--g:#31b58b;--gd:#24966f;--gl:#e8f6f0;--bg:#f7f8fa;--text:#1f2329;--sub:#737b86;--line:#e1e3e6;--danger:#d64545;--danger-bg:#fff0f0;--warn:#b76e00;--warn-bg:#fff6e5}
 *{box-sizing:border-box}body{margin:0;background:#eef0f2;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
-.board{width:1580px;min-height:1860px;margin:0 auto;padding:48px}.board>header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:32px}
+.board{width:1680px;min-height:3100px;margin:0 auto;padding:48px}.board>header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:32px}
 h1{margin:0;font-size:34px}.lead{margin:8px 0 0;color:var(--sub);font-size:16px}.legend{display:flex;gap:10px}.chip{padding:8px 12px;border-radius:999px;background:white;border:1px solid var(--line);font-size:13px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:34px 38px}.case{background:white;border-radius:24px;padding:20px;box-shadow:0 8px 28px rgba(31,35,41,.07)}
+.section-head{display:flex;justify-content:space-between;align-items:end;margin:34px 0 18px}.section-head h2{margin:0;font-size:24px}.section-head p{margin:0;color:var(--sub)}.baseline{display:grid;grid-template-columns:repeat(5,1fr);gap:20px}.reference{position:relative;background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px;box-shadow:0 5px 18px rgba(31,35,41,.05)}.reference img{display:block;width:100%;height:auto;border-radius:10px}.reference h3{font-size:15px;margin:12px 2px 4px}.reference p{font-size:12px;line-height:1.45;color:var(--sub);margin:0 2px 4px}.source-badge{position:absolute;left:20px;top:20px;background:rgba(31,35,41,.86);color:#fff;border-radius:999px;padding:6px 10px;font-size:11px}.conflict{color:#9a5a00!important}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:34px 38px}.case{background:white;border-radius:24px;padding:20px;box-shadow:0 8px 28px rgba(31,35,41,.07)}
 .case h2{font-size:18px;margin:0 0 5px}.case>.desc{font-size:13px;color:var(--sub);margin-bottom:14px;min-height:38px;line-height:1.5}
-.phone{width:100%;height:720px;border:9px solid #262a2f;border-radius:36px;overflow:hidden;background:var(--bg);position:relative;box-shadow:inset 0 0 0 1px #cfd2d6}
+.phone{width:100%;height:720px;border:1px solid #d9dde2;border-radius:30px;overflow:hidden;background:var(--bg);position:relative;box-shadow:0 10px 26px rgba(31,35,41,.09)}
 .statusbar{height:24px;background:white}.nav{height:58px;background:white;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid #eee}
 .brand{display:flex;align-items:center;gap:10px;font-weight:750}.duck{width:34px;height:34px;border-radius:50%;background:var(--g);position:relative;flex:none}.duck:before{content:"";position:absolute;width:16px;height:21px;border-radius:50% 50% 45% 45%;background:#fff;left:9px;top:6px}.duck:after{content:"";position:absolute;width:10px;height:5px;border-radius:50%;background:#ffad32;right:3px;top:17px}
 .icon{width:40px;height:40px;border:0;background:transparent;font-size:25px;color:#30343a}.content{height:calc(100% - 82px);position:relative;display:flex;flex-direction:column}.auth{background:white;padding:30px 24px}.auth .logo{display:grid;place-items:center;margin:5px 0 22px}.auth .logo .duck{width:76px;height:76px}.auth .logo .duck:before{width:37px;height:48px;left:20px;top:13px}.auth .logo .duck:after{width:22px;height:10px;right:4px;top:37px}.auth h3{text-align:center;font-size:30px;margin:8px 0 34px}.field{margin:17px 0}.field label{display:block;font-weight:650;margin-bottom:8px}.input{height:54px;border:1px solid var(--line);border-radius:15px;background:#fafafa;display:flex;align-items:center;padding:0 14px;color:#9a9fa7}.input.error{border:1.5px solid var(--danger);background:#fff}.prefix{color:var(--text);padding-right:12px;margin-right:12px;border-right:1px solid var(--line)}.get{margin-left:auto;color:var(--g);border:1px solid var(--g);border-radius:11px;padding:9px;font-size:13px}.error-txt{font-size:12px;color:var(--danger);margin-top:6px}.primary{height:52px;border-radius:18px;background:var(--g);display:grid;place-items:center;color:white;font-weight:700;margin-top:25px}.switch{text-align:center;color:#777;margin-top:17px;font-size:14px}.switch b{color:var(--g)}
@@ -20,15 +20,25 @@ h1{margin:0;font-size:34px}.lead{margin:8px 0 0;color:var(--sub);font-size:16px}
 .drawer-demo .content{filter:brightness(.84)}.shade{position:absolute;inset:0;background:rgba(31,35,41,.4);z-index:4}.drawer{position:absolute;z-index:5;left:0;top:0;bottom:0;width:80%;background:white;padding:22px 18px 15px;display:flex;flex-direction:column}.drawer-head{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:750}.close{margin-left:auto;font-size:24px}.new{height:50px;border:1.5px solid var(--g);border-radius:14px;color:var(--g);display:grid;place-items:center;margin:20px 0 12px;font-weight:700}.search{height:46px;background:#f6f6f7;border-radius:13px;padding:13px;color:#9298a1}.group{margin:18px 4px 8px;color:#858b94;font-weight:650}.history{height:50px;padding:0 10px;display:flex;align-items:center;border-radius:11px;font-size:14px}.history.active{background:var(--gl);border-left:3px solid var(--g)}.history.locked{opacity:.45}.logout{margin-top:auto;border-top:1px solid var(--line);padding:15px 8px 5px;color:#555}.toast{position:absolute;z-index:8;left:50%;top:94px;transform:translateX(-50%);background:#282d32;color:white;padding:10px 14px;border-radius:10px;font-size:12px;width:max-content;max-width:90%}
 .keyboard{height:240px;background:#d9dce2;padding:12px 10px}.suggest{height:36px;text-align:center;color:#333}.keys{display:grid;grid-template-columns:repeat(10,1fr);gap:4px}.key{height:42px;background:white;border-radius:6px;display:grid;place-items:center;font-size:12px}.safe{height:20px;background:#d9dce2;display:grid;place-items:center}.safe:after{content:"";width:120px;height:5px;border-radius:6px;background:#111}
 .annotations{margin-top:12px;display:grid;grid-template-columns:repeat(2,1fr);gap:6px}.note{font-size:11px;background:#f2f7f5;border-radius:8px;padding:7px;color:#4f675e}
+.strip-case{grid-column:1 / span 3}.state-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.mini-state{height:176px;border:1px solid var(--line);border-radius:16px;background:var(--bg);padding:18px;position:relative}.mini-state h3{font-size:15px;margin:0 0 10px}.mini-state p{font-size:12px;line-height:1.5;color:var(--sub);margin:7px 0}.skeleton{height:12px;border-radius:7px;background:linear-gradient(90deg,#e5e7eb,#f4f5f6,#e5e7eb);margin:10px 0}.mini-alert{border:1px solid #ffd6d6;background:var(--danger-bg);border-radius:10px;padding:10px;color:#7a3030;font-size:12px}.mini-action{display:inline-flex;margin-top:10px;border:1px solid var(--g);color:var(--gd);background:#fff;border-radius:999px;padding:7px 12px;font-size:12px}.offline{height:28px;background:#fff4db;color:#8a5c00;border-radius:8px;padding:6px 10px;font-size:12px}.empty-mark{font-size:34px;color:#a7adb6;text-align:center;margin-top:8px}
 </style>
 </head>
 <body>
 <main class="board">
   <header>
-    <div><h1>LittleDuck H5 状态视觉板</h1><p class="lead">延续现有绿色、圆角与高留白方向；覆盖认证、空态、生成、停止、失败、抽屉、键盘与安全区。</p></div>
+    <div><h1>LittleDuck H5 高保真状态视觉板</h1><p class="lead">WI-002 revision 6 · 以 5 张正式稿为视觉基准，按 PRD V1.7 补齐可开发状态。</p></div>
     <div class="legend"><span class="chip">375–430 px</span><span class="chip">纯文本</span><span class="chip">无图片 / 附件 / “+”</span></div>
   </header>
-  <section class="grid">
+  <div class="section-head"><div><h2>正式稿基准 · 5 / 5</h2><p>以下缩略图是输入映射证据；冲突入口仅作为原稿差异展示，不代表最终实现。</p></div><span class="chip">1088 × 1936 输入</span></div>
+  <section class="baseline">
+    <article class="reference"><span class="source-badge">U1 · 正式输入</span><img src="../../../../页面UI稿/用户端UI/注册页.png" alt="注册页正式稿"><h3>注册页</h3><p>继承品牌区、表单、绿色主按钮与登录入口。</p></article>
+    <article class="reference"><span class="source-badge">U2 · 正式输入</span><img src="../../../../页面UI稿/用户端UI/登录页.png" alt="登录页正式稿"><h3>登录页</h3><p>继承欢迎层级、LittleDuck 副标题与认证表单。</p></article>
+    <article class="reference"><span class="source-badge">U3 · 正式输入</span><img src="../../../../页面UI稿/用户端UI/对话框.png" alt="聊天页正式稿"><h3>聊天默认态</h3><p class="conflict">PRD 纠偏：输入区“+”不实现；气泡、导航与输入胶囊保留。</p></article>
+    <article class="reference"><span class="source-badge">U4 · 正式输入</span><img src="../../../../页面UI稿/用户端UI/对话框-输入状态.png" alt="软键盘状态正式稿"><h3>软键盘输入态</h3><p class="conflict">PRD 纠偏：图片入口不实现；动态视口、键盘与安全区保留。</p></article>
+    <article class="reference"><span class="source-badge">U5 · 正式输入</span><img src="../../../../页面UI稿/用户端UI/侧边栏.png" alt="历史抽屉正式稿"><h3>历史会话抽屉</h3><p>继承白色左抽屉、遮罩、新对话、搜索、分组和当前项。</p></article>
+  </section>
+  <div class="section-head"><div><h2>最终实现补稿</h2><p>补齐加载、空态、失败、生成、停止、重试、抽屉锁定与移动端适配。</p></div><span class="chip">纯文本 · 无多模态入口</span></div>
+  <section class="grid final-h5">
     <article class="case">
       <h2>01 注册 · 验证码错误</h2><div class="desc">错误贴近字段，保留输入；获取验证码不倒计时。</div>
       <div class="phone">
@@ -93,6 +103,15 @@ h1{margin:0;font-size:34px}.lead{margin:8px 0 0;color:var(--sub);font-size:16px}
         <div class="keyboard"><div class="suggest">每天　　可以　　学习</div><div class="keys"><span class="key">Q</span><span class="key">W</span><span class="key">E</span><span class="key">R</span><span class="key">T</span><span class="key">Y</span><span class="key">U</span><span class="key">I</span><span class="key">O</span><span class="key">P</span><span class="key">A</span><span class="key">S</span><span class="key">D</span><span class="key">F</span><span class="key">G</span><span class="key">H</span><span class="key">J</span><span class="key">K</span><span class="key">L</span><span class="key">⌫</span></div></div><div class="safe"></div></div>
       </div>
       <div class="annotations"><div class="note">100dvh + visualViewport</div><div class="note">草稿和滚动位置不丢失</div></div>
+    </article>
+    <article class="case strip-case">
+      <h2>07 加载 / 空态 / 发送失败 / 断网</h2><div class="desc">缺失状态不离开当前页面语境；失败保留恢复动作和已保存内容。</div>
+      <div class="state-strip">
+        <div class="mini-state"><h3>启动与会话加载</h3><div class="skeleton" style="width:42%"></div><div class="skeleton" style="width:84%"></div><div class="skeleton" style="width:66%"></div><p>导航与输入框框架保持稳定，消息区使用三条骨架。</p></div>
+        <div class="mini-state"><h3>历史为空 / 搜索无结果</h3><div class="empty-mark">◇</div><p style="text-align:center">还没有历史对话<br>未找到相关对话</p><div class="mini-action">清空搜索</div></div>
+        <div class="mini-state"><h3>用户消息发送失败</h3><div class="mini-alert">发送失败<br><span class="mini-action">重新发送</span></div><p>未保存消息只保留在当前页面；重发防重复。</p></div>
+        <div class="mini-state"><h3>断网与恢复</h3><div class="offline">网络已断开</div><p>已保存内容继续可读；草稿保留。恢复网络后由用户重新发送或重试。</p><div class="mini-action">回到底部</div></div>
+      </div>
     </article>
   </section>
 </main>
