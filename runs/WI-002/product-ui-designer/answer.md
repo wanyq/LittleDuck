@@ -57,4 +57,5 @@
 - 两张 HTML 视觉板均由本机 Chrome 无头渲染为 PNG；
 - 已检查 PNG 完整性、页面无截断、核心状态可读；
 - 已执行 `git diff --check`，未发现空白符错误；
+- 管理端视觉板中的 API Key 使用完整可见的 `EXAMPLE_NOT_A_REAL_OPENAI_API_KEY_000000` 假占位值，不使用掩码、截断或显隐切换；
 - 交付不包含真实 API Key、SSH 私钥、Token 或生产凭据。
