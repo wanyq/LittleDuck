@@ -1,0 +1,38 @@
+schema_version: "0.1"
+message_id: msg-1f7caeb8-cb3e-42a1-a7b3-7b983aff463a
+mission_id: littleduck-mvp-001
+intent: response
+message_type: artifact_reviewed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - product-ui-designer
+
+subject:
+  type: work_item
+  id: WI-002
+  revision: 7
+
+summary: WI-002 revision 6 重做提交审核未通过，最终补稿仍使用抽象 Logo 占位
+created_at: "2026-07-17T03:31:08Z"
+in_reply_to: msg-05b9d20a-1b0f-4612-a61c-e19ab09cf67c
+idempotency_key: artifact-review-response/littleduck-mvp-001/WI-002/RUN-WI-002-product-ui-designer/revision-6/attempt-1
+
+payload:
+  run_id: RUN-WI-002-product-ui-designer
+  decision: rejected
+  attempt: 1
+  passed_checks:
+    - 11 张正式 UI 输入全部映射，PRD 例外和范围取舍一致。
+    - H5/PC 状态、交互、文案、响应式和 QA 规则覆盖完整。
+    - validate-delivery.sh 复跑通过，API Key 假值、20 条分页、System Prompt 规则和凭据扫描均合格。
+  reasons:
+    - h5-visual-board.html 与 admin-visual-board.html 的最终实现补稿继续使用 `.duck` CSS 圆环占位，只包含绿色圆、白色椭圆和橙色块，没有正式稿鸭子 Logo 的眼睛与面部细节；PNG 中也呈现为抽象圆环。该结果与 WI-002 要求的 Logo 高保真不符，并直接违反 ux-ui-spec.md 1.1 的“不得用抽象占位 Logo 替换正式品牌图形”。
+  required_changes:
+    - 为最终实现补稿提供一个可复用、与正式稿鸭子品牌图形高保真一致的 Logo 资产或等价矢量实现，保留鸭头、眼睛、嘴部、绿色外形和不同尺寸下的可识别性。
+    - 在 H5 注册、导航、欢迎、助手头像、抽屉，以及管理端登录、侧栏等所有最终补稿位置统一替换抽象 `.duck` 占位；正式输入缩略图保持作为映射证据。
+    - 更新 h5-visual-board.html、admin-visual-board.html 并重新渲染两张 PNG；原始分辨率下检查小尺寸头像与大尺寸登录 Logo 均清晰、无裁切或变形。
+    - 扩展 validate-delivery.sh 或等价检查，防止最终补稿再次退化为当前抽象圆环占位；更新 self-test.md 记录 Logo 一致性复核结果。
+    - 除上述阻断项外，保持本次已通过的输入映射、状态覆盖、PRD 例外、文案和凭据安全结论。
+  resubmission:
+    - 在同一 RUN-WI-002-product-ui-designer 中恢复为 active，修正并自测后再次置为 in_review，发送新的 artifact_review_requested Message。
