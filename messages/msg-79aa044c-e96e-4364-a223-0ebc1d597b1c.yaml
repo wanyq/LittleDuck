@@ -1,0 +1,38 @@
+schema_version: "0.1"
+message_id: msg-79aa044c-e96e-4364-a223-0ebc1d597b1c
+mission_id: littleduck-mvp-001
+intent: response
+message_type: artifact_reviewed
+
+sender_agent_id: coordinator
+recipient_agent_ids:
+  - solution-architect
+
+subject:
+  type: work_item
+  id: WI-001
+  revision: 4
+
+summary: WI-001 第一次审核未通过，当前技术方案需从选型与最小可运行骨架层面重做
+created_at: "2026-07-17T02:46:27Z"
+in_reply_to: msg-096c5549-d525-4f3b-b139-013f5dc74ef6
+idempotency_key: artifact-review-response/littleduck-mvp-001/WI-001/RUN-WI-001-solution-architect/attempt-1
+
+payload:
+  run_id: RUN-WI-001-solution-architect
+  decision: rejected
+  attempt: 1
+  reasons:
+    - 当前方案直接把 PostgreSQL 持久化流事件、至少 24 小时事件重放、签名 cursor、生成任务与后台任务表、请求指纹幂等及全套 CSRF 语义固化为下游不可单方面修改的合同，但没有给出与更简单 MVP 方案的对比、必要性证明和单机运维成本评估；技术复杂度与 PRD P0 最小闭环之间缺少可审核的取舍依据。
+    - 工程骨架的 API 实际只实现并验证 `/healthz`，且数据库明确为 `not_checked`；它没有证明所选数据库、事务边界、任务恢复、SSE 恢复或模块边界能够在该骨架中启动和协同，因此不足以支撑“下游可直接按此基线开发”的结论。
+    - OpenAPI、SSE、数据模型和 Mock 已围绕上述复杂机制深度耦合；如果直接接受，会在真实实现验证前过早锁死 WI-003、WI-004 和 WI-005，后续很可能通过合同修订返工。
+  required_changes:
+    - 从 PRD P0、单台腾讯云部署、开发成本和运维复杂度出发重新做架构决策；至少比较两个可行方案，并明确为何最终方案是满足当前 Mission 的最小充分方案。
+    - 重新划分“P0 必需机制”和“可延后增强机制”。对事件持久化与重放、任务表、复杂幂等、签名 cursor、CSRF 等逐项保留、简化或移除；保留项必须给出对应 PRD 场景、失败模型、实现与运维代价。
+    - 在新架构确定后重建完整 OpenAPI、流式协议、数据模型、错误目录、示例、生成类型和 Mock，确保合同描述产品行为而不过早固化未经验证的内部实现。
+    - 重建可运行工程骨架，至少实际证明所选服务端、数据持久化/迁移或等价存储接入、模块装配和流式通路可以在无生产凭据的本地环境启动；不得仅以静态前端加健康检查占位作为架构可行性证据。
+    - 提供一个最小纵向验证切片或等价自动检查，覆盖请求进入、持久化边界、流式输出和终态读取；无需实现完整业务，但必须验证关键架构连接点，而非只验证文档和 Mock 自身一致。
+    - 保持普通用户/管理员隔离、会话越权防护、API Key 可逆加密与明文管理端展示、真实 Prompt/返回记录以及无真实凭据要求，不得以简化为由削弱 Mission 安全边界。
+    - 重新生成验证报告，列出实际执行环境、命令、结果、未验证项及其后续归属，并确保 answer.md、架构文档、合同、骨架和测试结论互相一致。
+  resubmission:
+    - 在同一 RUN-WI-001-solution-architect 中恢复为 active，按上述要求整体重做；完成后再次置为 in_review，并发送新的 artifact_review_requested Message。
