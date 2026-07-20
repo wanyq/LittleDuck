@@ -1,0 +1,4 @@
+interface:
+  display_name: "Coordinate Agents with Local Files"
+  short_description: "Coordinate primary agents through shared local files"
+  default_prompt: "Use $coordinate-agents-with-local-files to coordinate this Mission through a shared local workspace and targeted Codex task notifications."
